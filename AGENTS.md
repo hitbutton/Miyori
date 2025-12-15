@@ -17,7 +17,7 @@ Voice-activated AI assistant. Currently in Phase 1: basic voice loop.
 
 ## When Implementing
 1. Check the interface in `src/interfaces/` for the contract
-2. Read `IMPLEMENTATION.md` in the folder you're working in
+2. Read the `*_PLAN.md` file in the folder you're working in
 3. Follow the pseudocode provided
 
 ## Current Phase

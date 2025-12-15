@@ -2,17 +2,18 @@
 
 ## Step 1: Set up the file
 - Create `pyttsx_output.py` in this directory
-- Import required modules: `pyttsx3`, `json`, `ISpeechOutput` from interfaces
+- Import required modules: `pyttsx3`, `json`, `pathlib.Path`, `ISpeechOutput` from interfaces
 
 ## Step 2: Define the class
 ```python
-class PyttsTOutput(ISpeechOutput):
+class PyttsxOutput(ISpeechOutput):
 ```
 
 ## Step 3: Implement __init__
 ```python
 def __init__(self):
-    # Open and load config.json from root (../../config.json)
+    # Get config path: Path(__file__).parent.parent.parent / "config.json"
+    # Open and load config.json
     # Extract speech_output config section
     # Create self.engine = pyttsx3.init()
     # Set rate: self.engine.setProperty('rate', rate_from_config)
@@ -46,4 +47,4 @@ class ISpeechOutput(ABC):
 ## Notes
 - `rate` = words per minute (default 180, range typically 100-300)
 - Engine is reusable, initialize once in constructor
-- Path to config.json from this file: `../../config.json`
+- Use `Path(__file__).parent.parent.parent / "config.json"` for robust path resolution

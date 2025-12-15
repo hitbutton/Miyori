@@ -2,7 +2,7 @@
 
 ## Step 1: Set up the file
 - Create `google_ai_backend.py` in this directory
-- Import required modules: `google.generativeai as genai`, `json`, `ILLMBackend` from interfaces
+- Import required modules: `google.generativeai as genai`, `json`, `pathlib.Path`, `ILLMBackend` from interfaces
 
 ## Step 2: Define the class
 ```python
@@ -12,7 +12,8 @@ class GoogleAIBackend(ILLMBackend):
 ## Step 3: Implement __init__
 ```python
 def __init__(self):
-    # Open and load config.json from root (../../config.json)
+    # Get config path: Path(__file__).parent.parent.parent / "config.json"
+    # Open and load config.json
     # Extract llm config section
     # Get api_key and model from config
     # genai.configure(api_key=api_key)
@@ -48,4 +49,4 @@ class ILLMBackend(ABC):
 ## Notes
 - API key obtainable from: https://aistudio.google.com/app/apikey
 - `gemini-2.0-flash-exp` is fast and free-tier friendly
-- Path to config.json from this file: `../../config.json`
+- Use `Path(__file__).parent.parent.parent / "config.json"` for robust path resolution
