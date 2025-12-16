@@ -20,20 +20,24 @@ def __init__(self):
     # self.model = genai.GenerativeModel(model)
 ```
 
-## Step 4: Implement generate()
+## Step 4: Implement generate_stream()
 ```python
-def generate(self, prompt: str) -> str:
+def generate_stream(self, prompt: str, on_chunk: Callable[[str], None]) -> None:
     # Print "Thinking..."
-    # response = self.model.generate_content(prompt)
-    # Return response.text
+    # response = self.model.stream_generate_content(prompt)
+    # for chunk in response:
+    #     if chunk.text:
+    #         on_chunk(chunk.text)
 ```
 
 ## Interface Contract
 ```python
+from typing import Callable
+
 class ILLMBackend(ABC):
     @abstractmethod
-    def generate(self, prompt: str) -> str:
-        """Generate AI response"""
+    def generate_stream(self, prompt: str, on_chunk: Callable[[str], None]) -> None:
+        """Generate AI response with streaming (calls on_chunk for each text chunk)"""
 ```
 
 ## Config Keys (from config.json)

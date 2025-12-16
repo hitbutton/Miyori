@@ -23,7 +23,11 @@ class VoiceAssistant:
                 self.speech_output.speak("Goodbye!")
                 break
             
-            response = self.llm.generate(text)
-            self.speech_output.speak(response)
+            # Define callback for streaming chunks - speak immediately
+            def speak_chunk(chunk: str) -> None:
+                self.speech_output.speak(chunk)
+            
+            # Use streaming for real-time TTS
+            self.llm.generate_stream(text, speak_chunk)
         
         print("Miyori shutting down...")

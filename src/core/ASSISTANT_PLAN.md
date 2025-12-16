@@ -35,14 +35,19 @@ def run(self) -> None:
     #         self.speech_output.speak("Goodbye!")
     #         break
     #     
-    #     response = self.llm.generate(text)
-    #     self.speech_output.speak(response)
+    #     # Define callback for streaming chunks - speak immediately
+    #     def speak_chunk(chunk: str) -> None:
+    #         self.speech_output.speak(chunk)
+    #     
+    #     # Use streaming for real-time TTS
+    #     self.llm.generate_stream(text, speak_chunk)
     # 
     # Print "Miyori shutting down..."
 ```
 
 ## Notes
 - This class has NO knowledge of specific implementations
-- It only uses the interface methods: listen(), speak(), generate()
+- It only uses the interface methods: listen(), speak(), generate_stream()
+- Streaming enables real-time TTS: each LLM chunk is spoken immediately as it arrives
 - Exit commands: "exit", "quit", "stop", "goodbye" (case-insensitive)
 - Loop continues even if listen() returns None (just try again)

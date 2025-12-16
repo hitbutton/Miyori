@@ -1,6 +1,7 @@
 import google.generativeai as genai
 import json
 from pathlib import Path
+from typing import Callable
 from src.interfaces.llm_backend import ILLMBackend
 
 class GoogleAIBackend(ILLMBackend):
@@ -24,7 +25,9 @@ class GoogleAIBackend(ILLMBackend):
         
         self.model = genai.GenerativeModel(model_name)
 
-    def generate(self, prompt: str) -> str:
+    def generate_stream(self, prompt: str, on_chunk: Callable[[str], None]) -> None:
         print("Thinking...")
-        response = self.model.generate_content(prompt)
-        return response.text
+        response = self.model.stream_generate_content(prompt)
+        for chunk in response:
+            if chunk.text:
+                on_chunk(chunk.text)
