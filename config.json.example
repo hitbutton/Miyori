@@ -8,6 +8,6 @@
   },
   "llm": {
     "api_key": "YOUR_GOOGLE_AI_KEY_HERE",
-    "model": "gemini-2.0-flash-exp"
+    "model": "gemini-2.5-flash-lite"
   }
 }
