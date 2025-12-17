@@ -1,24 +1,11 @@
 # Miyori AI Agent Instructions
 
-## Project Overview
-Voice-activated AI assistant. Currently in Phase 1: basic voice loop.
+Voice-activated AI assistant with modular, interface-based architecture.
 
-## Architecture
-- **Interfaces** define contracts in `src/interfaces/`
-- **Implementations** fulfill contracts in `src/implementations/`
-- **Each implementation folder has IMPLEMENTATION.md** with specific instructions
-- Read `ARCHITECTURE.md` in root for full structure
+**Read `ARCHITECTURE.md` first** - it contains all conventions, design decisions, and extension patterns.
 
-## Rules
-- Full type hints required
-- Read config from `config.json` in root
-- No error handling this phase (let exceptions bubble)
-- Use `print()` for output
-
-## When Implementing
-1. Check the interface in `src/interfaces/` for the contract
-2. Read the `*_PLAN.md` file in the folder you're working in
-3. Follow the pseudocode provided
-
-## Current Phase
-Phase 1: Basic voice conversation loop
+## Quick Start
+- Interfaces define contracts in `src/interfaces/`
+- Implementations in `src/implementations/`
+- All config in `config.json` at root
+- Check for `FEATURE_*.md` files for active work
