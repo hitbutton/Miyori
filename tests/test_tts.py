@@ -7,7 +7,7 @@ import time
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from src.interfaces.speech_output import ISpeechOutput
-from src.implementations.tts.pyttsx_output import PyttsxOutput
+from src.implementations.tts.kokoro_tts_output import KokoroTTSOutput
 
 def run_tts_test(tts: ISpeechOutput):
     """
@@ -56,7 +56,7 @@ def run_tts_test(tts: ISpeechOutput):
 
 def main():
     try:
-        tts = PyttsxOutput()
+        tts = KokoroTTSOutput()
     except Exception as e:
         print(f"Failed to initialize TTS: {e}")
         return

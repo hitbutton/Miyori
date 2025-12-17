@@ -4,3 +4,6 @@ google-genai
 pyaudio
 pvporcupine
 pvcheetah
+kokoro
+sounddevice
+numpy
