@@ -13,7 +13,7 @@ def run_speech_test(speech_input: ISpeechInput):
     This function interacts strictly with the ISpeechInput interface.
     """
     print("\n--- Speech Test ---")
-    print("Please say the wake word 'Porcupine' to trigger...")
+    print("Please say the wake word 'Hey Miyori' to trigger...")
     
     result = speech_input.listen()
     

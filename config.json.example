@@ -4,8 +4,8 @@
     "active_listen_timeout": 30,
     "energy_threshold": 300,
     "porcupine_access_key": "YOUR_PICOVOICE_ACCESS_KEY",
-    "keyword_paths": [],
-    "keywords": ["porcupine"]
+    "keyword_paths": ["keyword/keyword.ppn"],
+    "keywords": ["hey me or e"]
   },
   "speech_output": {
     "rate": 180
