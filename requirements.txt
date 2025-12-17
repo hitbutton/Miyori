@@ -3,3 +3,4 @@ pyttsx3
 google-genai
 pyaudio
 pvporcupine
+pvcheetah
