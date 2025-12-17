@@ -22,7 +22,7 @@ graph TD
         Brain
     end
     
-    subgraph Implementations [src/implementations]  
+    subgraph Implementations [src/implementations]
         Porcupine[PorcupineSpeechInput] -.-> Inputs
         Kokoro[KokoroTTSOutput] -.-> Outputs
         GoogleAI[GoogleAIBackend] -.-> Brain
