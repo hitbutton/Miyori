@@ -54,6 +54,7 @@ class KokoroTTSOutput(ISpeechOutput):
         # lang_code='a' is for American English
         self.pipeline = KPipeline(lang_code='a') 
         self.voice = 'af_heart'
+        self.speed = 1.25
         
         # Get the singleton pipeline
         self._speech_pipeline = SpeechPipeline()
