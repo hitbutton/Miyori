@@ -23,9 +23,9 @@ graph TD
     end
     
     subgraph Implementations [src/implementations]  
-        Porcupine[porcupine_speech_input] -.-> Inputs
-        Kokoro[kokoro_tts_output] -.-> Outputs
-        GoogleAI[google_ai_backend] -.-> Brain
+        Porcupine[PorcupineSpeechInput] -.-> Inputs
+        Kokoro[KokoroTTSOutput] -.-> Outputs
+        GoogleAI[GoogleAIBackend] -.-> Brain
     end
 ```
 
