@@ -5,7 +5,7 @@ import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from src.interfaces.speech_input import ISpeechInput
-from src.implementations.speech.google_speech_input import GoogleSpeechInput
+from src.implementations.speech.porcupine_speech_input import PorcupineSpeechInput
 
 def run_speech_test(speech_input: ISpeechInput):
     """
@@ -13,7 +13,7 @@ def run_speech_test(speech_input: ISpeechInput):
     This function interacts strictly with the ISpeechInput interface.
     """
     print("\n--- Speech Test ---")
-    print("Please speak into your microphone...")
+    print("Please say the wake word 'Porcupine' to trigger...")
     
     result = speech_input.listen()
     
@@ -26,7 +26,7 @@ def run_speech_test(speech_input: ISpeechInput):
 
 def main():
     try:
-        speech_input = GoogleSpeechInput()
+        speech_input = PorcupineSpeechInput()
     except Exception as e:
         print(f"Failed to initialize speech input: {e}")
         return

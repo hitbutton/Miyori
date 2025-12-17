@@ -1,10 +1,10 @@
-from src.implementations.speech.google_speech_input import GoogleSpeechInput
+from src.implementations.speech.porcupine_speech_input import PorcupineSpeechInput
 from src.implementations.tts.pyttsx_output import PyttsxOutput
 from src.implementations.llm.google_ai_backend import GoogleAIBackend
 from src.core.assistant import VoiceAssistant
 
 def main():
-    speech_input = GoogleSpeechInput()
+    speech_input = PorcupineSpeechInput()
     speech_output = PyttsxOutput()
     llm_backend = GoogleAIBackend()
     
