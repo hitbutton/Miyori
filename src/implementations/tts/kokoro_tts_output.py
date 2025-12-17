@@ -10,42 +10,38 @@ from kokoro import KPipeline
 from src.interfaces.speech_output import ISpeechOutput
 from src.implementations.tts.speech_pipeline import SpeechPipeline
 
-def _kokoro_worker(q, pipeline, voice):
+def _kokoro_worker(text_queue, audio_queue, pipeline, voice, speed):
     """
     Worker function that runs in the background thread.
-    Uses the Kokoro pipeline to generate and play audio.
+    Uses the Kokoro pipeline to generate audio and put it into the audio queue.
     """
     logging.info("Kokoro worker started")
     
     while True:
         try:
-            item = q.get()
+            item = text_queue.get()
             if item is None:
-                q.task_done()
+                # Add None to audio queue to signal end (though we keep stream open)
+                text_queue.task_done()
                 break
             
-            logging.info(f"Speaking: {item}")
-            print(f"Speaking: {item}")
+            logging.info(f"Synthesizing: {item}")
             
             # Generate audio
             # pipeline returns a generator of (graphemes, phonemes, audio)
-            # or we can consume it all. For low latency, we might stream, 
-            # but sounddevice expects a full array or a callback.
-            # Let's simple-block generate first.
-            
-            generator = pipeline(item, voice=voice, speed=1, split_pattern=r'\n+')
+            generator = pipeline(item, voice=voice, speed=speed, split_pattern=r'\n+')
             
             for i, (gs, ps, audio) in enumerate(generator):
                 # audio is a numpy array (float32)
                 # Sample rate is 24000 for Kokoro
-                sd.play(audio, samplerate=24000)
-                sd.wait() # Wait for this segment to finish
+                if audio is not None and len(audio) > 0:
+                    audio_queue.put(audio)
                 
-            q.task_done()
+            text_queue.task_done()
             
         except Exception as e:
             logging.error(f"Kokoro worker error: {e}")
-            q.task_done()
+            text_queue.task_done()
 
 class KokoroTTSOutput(ISpeechOutput):
     def __init__(self):
@@ -56,18 +52,74 @@ class KokoroTTSOutput(ISpeechOutput):
         self.voice = 'af_heart'
         self.speed = 1.25
         
-        # Get the singleton pipeline
+        # Audio playback state
+        self.audio_queue = queue.Queue()
+        self._current_chunk = None
+        self._chunk_offset = 0
+        
+        # Initialize sounddevice stream
+        self.stream = sd.OutputStream(
+            samplerate=24000,
+            channels=1,
+            dtype='float32',
+            callback=self._audio_callback
+        )
+        self.stream.start()
+        
+        # Get the singleton text pipeline
         self._speech_pipeline = SpeechPipeline()
         
         # Configure backend
-        # We need to pass the pipeline and voice to the worker
-        worker_func = partial(_kokoro_worker, pipeline=self.pipeline, voice=self.voice)
+        # Pass both queues to the worker
+        worker_func = partial(
+            _kokoro_worker, 
+            audio_queue=self.audio_queue, 
+            pipeline=self.pipeline, 
+            voice=self.voice,
+            speed=self.speed
+        )
         self._speech_pipeline.set_backend(worker_func)
         self._speech_pipeline.start()
         
         self._buffer = ""
         self._buffer_lock = threading.Lock()
         self._flush_timer = None
+
+    def _audio_callback(self, outdata, frames, time, status):
+        """
+        Callback for sounddevice OutputStream.
+        Fills the output buffer from the audio_queue.
+        """
+        if status:
+            logging.warning(f"Audio stream status: {status}")
+        
+        filled = 0
+        while filled < frames:
+            if self._current_chunk is None:
+                try:
+                    # Get next chunk from queue
+                    # Use timeout=0 (get_nowait) because we are in an audio callback
+                    self._current_chunk = self.audio_queue.get_nowait()
+                    self._chunk_offset = 0
+                except queue.Empty:
+                    # No more audio ready, fill remainder with silence
+                    outdata[filled:].fill(0)
+                    break
+            
+            # Copy data from current chunk
+            chunk_remaining = len(self._current_chunk) - self._chunk_offset
+            needed = frames - filled
+            to_copy = min(chunk_remaining, needed)
+            
+            # Kokoro returns sequences of floats, sounddevice expects (frames, channels)
+            # We use 1 channel so we slice it into outdata[:, 0]
+            outdata[filled:filled+to_copy, 0] = self._current_chunk[self._chunk_offset:self._chunk_offset+to_copy]
+            
+            filled += to_copy
+            self._chunk_offset += to_copy
+            
+            if self._chunk_offset >= len(self._current_chunk):
+                self._current_chunk = None
         
     def speak(self, text: str) -> None:
         """Enqueue text for speech."""
@@ -94,21 +146,19 @@ class KokoroTTSOutput(ISpeechOutput):
     def _process_buffer(self) -> None:
         """
         Segments buffer into sentences and enqueues complete ones.
-        We define a complete sentence as ending with [.!?] and followed by whitespace.
-        This helps avoid splitting abbreviations like 'Dr.' immediately (though not perfect).
         """
-        # Split strings where there is a sentence terminator followed by whitespace
-        # (?<=[.!?]) is a lookbehind that asserts the character before the split point is . ! or ?
-        # \s+ matches one or more whitespace characters
         parts = re.split(r'(?<=[.!?])\s+', self._buffer)
         
-        # If we have multiple parts, it means we found split points.
-        # The last part is the remainder (potentially incomplete or waiting for next space).
-        # All previous parts are complete sentences (terminated and followed by space).
         if len(parts) > 1:
             for part in parts[:-1]:
                 if part.strip():
                     self._speech_pipeline.enqueue(part)
             
-            # The last part becomes the new buffer
             self._buffer = parts[-1]
+
+    def stop(self):
+        """Clean up resources."""
+        if hasattr(self, 'stream'):
+            self.stream.stop()
+            self.stream.close()
+        self._speech_pipeline.stop()
