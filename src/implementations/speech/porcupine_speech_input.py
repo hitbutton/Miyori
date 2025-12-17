@@ -86,6 +86,15 @@ class PorcupineSpeechInput(ISpeechInput):
                     audio = self.recognizer.listen(source, timeout=5, phrase_time_limit=15)
                     
                 print("Processing command...")
+
+                # Janky hack: Append 500ms of silence to avoid it clipping at the end for some reason.
+                raw_data = audio.get_raw_data()
+                silence_frames = int(audio.sample_rate * 0.5)
+                silence_bytes = silence_frames * audio.sample_width
+                silence = b'\0' * silence_bytes
+                
+                audio = sr.AudioData(raw_data + silence, audio.sample_rate, audio.sample_width)
+
                 text = self.recognizer.recognize_google(audio)
                 print(f"You said: {text}")
                 
