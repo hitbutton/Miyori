@@ -48,6 +48,12 @@ class VoiceAssistant:
             # Update last interaction time on successful speech detection
             last_interaction_time = time.time()
             
+            # Check for "go to sleep" command
+            if "go to sleep" in text.lower():
+                self.speech_output.speak("ok goodnight")
+                last_interaction_time = 0 # Force wake word requirement next time
+                continue
+
             # Check for exit commands (case-insensitive)
             if any(word in text.lower() for word in ['exit', 'quit', 'stop', 'goodbye']):
                 self.speech_output.speak("Goodbye!")
