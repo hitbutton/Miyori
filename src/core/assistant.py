@@ -55,7 +55,7 @@ class VoiceAssistant:
                 continue
 
             # Check for exit commands (case-insensitive)
-            if any(word in text.lower() for word in ['exit', 'quit', 'stop', 'goodbye']):
+            if any(word in text.lower() for word in ['exit', 'quit', 'goodbye']):
                 self.speech_output.speak("Goodbye!")
                 break
             
