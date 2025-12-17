@@ -1,3 +1,6 @@
+# 🛑 STATUS: COMPLETED (Phase 1)
+> This document outlines the initial implementation which is now live. 
+> Do not use this as a task list. Treat it as historical context or architecture reference only.
 # Miyori - Phase 1 Architecture
 
 ## Project Structure
