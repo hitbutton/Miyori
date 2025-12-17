@@ -21,3 +21,8 @@ class ILLMBackend(ABC):
             on_chunk: Callback function called with each text chunk as it arrives
         """
         pass
+
+    @abstractmethod
+    def reset_context(self) -> None:
+        """Reset the conversation context (history)."""
+        pass

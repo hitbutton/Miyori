@@ -41,6 +41,10 @@ class VoiceAssistant:
             if text is None:
                 continue
             
+            # If we were in wake-word mode, this is a fresh conversation.
+            if require_wake_word:
+                 self.llm.reset_context()
+
             # Update last interaction time on successful speech detection
             last_interaction_time = time.time()
             

@@ -20,7 +20,15 @@ class GoogleAIBackend(ILLMBackend):
             self.client = genai.Client(api_key=self.api_key)
         else:
             # Handle missing API key gracefully or let it fail later
+            # Handle missing API key gracefully or let it fail later
             self.client = None
+            
+        self.chat = None
+
+    def reset_context(self) -> None:
+        """Resets the conversation history."""
+        print("Resetting conversation context...")
+        self.chat = None
 
     def generate_stream(self, prompt: str, on_chunk: Callable[[str], None]) -> None:
         if not self.client:
@@ -28,12 +36,26 @@ class GoogleAIBackend(ILLMBackend):
             return
 
         print("Thinking...")
-        # New SDK usage: client.models.generate_content_stream
-        response = self.client.models.generate_content_stream(
-            model=self.model_name,
-            contents=prompt
-        )
         
-        for chunk in response:
-            if chunk.text:
-                on_chunk(chunk.text)
+        # Initialize chat if not already active
+        if self.chat is None:
+            # We can create a new chat session
+            try:
+                self.chat = self.client.chats.create(model=self.model_name)
+            except Exception as e:
+                print(f"Error creating chat session: {e}")
+                # Fallback to direct generation if chat fails (though unexpected)
+                # But better to just re-raise or handle gracefully
+                return
+
+        try:
+            # Use chat.send_message with streaming
+            response = self.chat.send_message_stream(prompt)
+            
+            for chunk in response:
+                if chunk.text:
+                    on_chunk(chunk.text)
+                    
+        except Exception as e:
+            print(f"Error during streaming generation: {e}")
+            self.chat = None # Invalidate chat on error?
