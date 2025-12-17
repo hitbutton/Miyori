@@ -40,12 +40,12 @@ def run_tts_test(tts: ISpeechOutput):
             tts.speak(text)
             
         print("Waiting for speech to finish...")
-        print("All chunks sent to TTS. Keeping process alive for 30s to allow playback...")
+        print("All chunks sent to TTS. Keeping process alive for 40s to allow playback...")
         print("Press Ctrl+C to exit early.")
         
         try:
             start_wait = time.time()
-            while time.time() - start_wait < 30:
+            while time.time() - start_wait < 40:
                 time.sleep(0.1)
         except KeyboardInterrupt:
             print("\nExited early by user.")

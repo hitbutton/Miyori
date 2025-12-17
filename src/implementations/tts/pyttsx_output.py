@@ -1,5 +1,7 @@
 import json
+import re
 import logging
+import threading
 from pathlib import Path
 from functools import partial
 from src.interfaces.speech_output import ISpeechOutput
@@ -76,6 +78,10 @@ class PyttsxOutput(ISpeechOutput):
         # src/implementations/tts/pyttsx_output.py -> ... -> config.json
         config_path = Path(__file__).parent.parent.parent.parent / "config.json"
         
+        self._buffer = ""
+        self._buffer_lock = threading.Lock()
+        self._flush_timer = None
+        
         rate = 180
         if config_path.exists():
             try:
@@ -98,4 +104,44 @@ class PyttsxOutput(ISpeechOutput):
 
     def speak(self, text: str) -> None:
         """Enqueue text for speech."""
-        self.pipeline.enqueue(text)
+        with self._buffer_lock:
+            # Cancel any pending flush
+            if self._flush_timer:
+                self._flush_timer.cancel()
+            
+            self._buffer += text
+            self._process_buffer()
+            
+            # Schedule new flush if buffer still has content
+            if self._buffer.strip():
+                self._flush_timer = threading.Timer(0.5, self._flush_internal)
+                self._flush_timer.start()
+
+    def _flush_internal(self) -> None:
+        """Force output of any buffered text."""
+        with self._buffer_lock:
+            if self._buffer.strip():
+                self.pipeline.enqueue(self._buffer)
+            self._buffer = ""
+        
+    def _process_buffer(self) -> None:
+        """
+        Segments buffer into sentences and enqueues complete ones.
+        We define a complete sentence as ending with [.!?] and followed by whitespace.
+        This helps avoid splitting abbreviations like 'Dr.' immediately (though not perfect).
+        """
+        # Split strings where there is a sentence terminator followed by whitespace
+        # (?<=[.!?]) is a lookbehind that asserts the character before the split point is . ! or ?
+        # \s+ matches one or more whitespace characters
+        parts = re.split(r'(?<=[.!?])\s+', self._buffer)
+        
+        # If we have multiple parts, it means we found split points.
+        # The last part is the remainder (potentially incomplete or waiting for next space).
+        # All previous parts are complete sentences (terminated and followed by space).
+        if len(parts) > 1:
+            for part in parts[:-1]:
+                if part.strip():
+                    self.pipeline.enqueue(part)
+            
+            # The last part becomes the new buffer
+            self._buffer = parts[-1]
