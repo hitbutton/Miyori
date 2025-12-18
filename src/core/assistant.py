@@ -74,6 +74,7 @@ class VoiceAssistant:
                 self.llm.generate_stream(text, speak_chunk)
         
         print("Miyori shutting down...")
+        time.sleep(2)
 
     def _handle_with_tools(self, user_input: str, on_chunk: Callable[[str], None]) -> None:
         """Handle user input with tool support."""
