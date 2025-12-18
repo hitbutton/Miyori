@@ -28,9 +28,6 @@ def _read_file(path: str) -> str:
     if not target_path.is_absolute():
         target_path = (PROJECT_ROOT / path).resolve()
     
-    if not _is_path_allowed(target_path):
-        return f"Error: Access denied. Path must be in allowed directories: {[str(d) for d in ALLOWED_DIRECTORIES]}"
-    
     try:
         if not target_path.exists():
             return f"Error: File not found: {path}"
@@ -56,7 +53,7 @@ def _write_file(path: str, content: str) -> str:
         target_path = (PROJECT_ROOT / path).resolve()
     
     if not _is_path_allowed(target_path):
-        return f"Error: Access denied. Path must be in allowed directories: {[str(d) for d in ALLOWED_DIRECTORIES]}"
+        return f"Error: Access denied. Write operations are restricted to allowed directories: {[str(d) for d in ALLOWED_DIRECTORIES]}"
     
     try:
         # Ensure parent directory exists
@@ -75,9 +72,6 @@ def _list_directory(path: str) -> str:
     target_path = Path(path)
     if not target_path.is_absolute():
         target_path = (PROJECT_ROOT / path).resolve()
-    
-    if not _is_path_allowed(target_path):
-        return f"Error: Access denied. Path must be in allowed directories: {[str(d) for d in ALLOWED_DIRECTORIES]}"
     
     try:
         if not target_path.exists():
@@ -130,7 +124,7 @@ def file_operations(operation: str, path: str, content: str = None) -> str:
 # Create the tool definition
 file_ops_tool = Tool(
     name="file_operations",
-    description="Read files, write files, or list directory contents. Only works in allowed directories (workspace/ or documents/) for safety.",
+    description="Read files, write files, or list directory contents. Read/List operations work anywhere on the system. Write operations are restricted to workspace/ or documents/.",
     parameters=[
         ToolParameter(
             name="operation",
@@ -142,7 +136,7 @@ file_ops_tool = Tool(
         ToolParameter(
             name="path",
             type="string",
-            description="File or directory path (e.g., 'workspace/notes.txt')",
+            description="File or directory path. Can be absolute (e.g., 'C:/Users/...') or relative to project root.",
             required=True
         ),
         ToolParameter(
