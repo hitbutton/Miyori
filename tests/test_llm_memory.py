@@ -13,12 +13,11 @@ def main():
     def on_chunk(text):
         print(text, end="", flush=True)
 
-    print("\nTurn 1: Telling LLM my name.")
-    backend.generate_stream("Hi, my name is Simon.", on_chunk)
+    print("\nTurn 1: Remembering fruits.")
+    backend.generate_stream("remember these fruits: apple, orange, mango.", on_chunk)
     print("\n" + "-"*20)
-    
-    print("\nTurn 2: Asking LLM my name.")
-    backend.generate_stream("What is my name?", on_chunk)
+    print("\nTurn 2: Recalling fruits.")
+    backend.generate_stream("What are the fruits?", on_chunk)
     print("\n" + "-"*20)
 
 if __name__ == "__main__":
