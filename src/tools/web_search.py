@@ -1,10 +1,9 @@
-import requests
-from bs4 import BeautifulSoup
+from ddgs import DDGS
 from src.core.tools import Tool, ToolParameter
 
 def web_search(query: str, num_results: int = 3) -> str:
     """
-    Search the web using DuckDuckGo.
+    Search the web using DDGS (Dux Distributed Global Search).
     
     Args:
         query: Search query string
@@ -16,30 +15,15 @@ def web_search(query: str, num_results: int = 3) -> str:
     print(f"🔍 Searching web: {query}")
     
     try:
-        # Use DuckDuckGo HTML search (no API key needed)
-        url = f"https://html.duckduckgo.com/html/?q={requests.utils.quote(query)}"
-        headers = {"User-Agent": "Mozilla/5.0"}
-        
-        response = requests.get(url, headers=headers, timeout=5)
-        if response.status_code != 200:
-            return f"Search failed: DuckDuckGo returned status {response.status_code}"
-            
-        soup = BeautifulSoup(response.text, 'html.parser')
-        
-        # Parse results - try multiple selectors
         results = []
-        result_elements = soup.select('.result') or soup.select('.links_main')
-        
-        for result in result_elements[:num_results]:
-            title_elem = result.select_one('.result__title') or result.select_one('.result__a')
-            snippet_elem = result.select_one('.result__snippet') or result.select_one('.result__snippet')
-            url_elem = result.select_one('.result__url')
-            
-            if title_elem and snippet_elem:
+        with DDGS() as ddgs:
+            # text() returns a generator of results
+            ddgs_results = ddgs.text(query, max_results=num_results)
+            for r in ddgs_results:
                 results.append({
-                    'title': title_elem.get_text(strip=True),
-                    'snippet': snippet_elem.get_text(strip=True),
-                    'url': url_elem.get_text(strip=True) if url_elem else 'N/A'
+                    'title': r.get('title', 'No Title'),
+                    'snippet': r.get('body', 'No snippet available'),
+                    'url': r.get('href', 'N/A')
                 })
         
         if not results:

@@ -8,4 +8,4 @@ kokoro
 sounddevice
 numpy
 requests
-beautifulsoup4
+ddgs

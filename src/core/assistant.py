@@ -5,7 +5,7 @@ from src.interfaces.speech_input import ISpeechInput
 from src.interfaces.speech_output import ISpeechOutput
 from src.interfaces.llm_backend import ILLMBackend
 from src.core.tool_registry import ToolRegistry
-from typing import Dict, Any
+from typing import Dict, Any, Callable
 
 class VoiceAssistant:
     def __init__(self, 
