@@ -11,10 +11,14 @@ Miyori is a modular voice assistant built in Python. The system follows a clean 
 graph TD
     Main[src/main.py] --> Config[config.json]
     Main --> Assistant[VoiceAssistant]
+    Main --> Logger[src/utils/logger.py]
     
     Assistant --> Inputs[ISpeechInput]
     Assistant --> Outputs[ISpeechOutput]
     Assistant --> Brain[ILLMBackend]
+    Assistant --> ToolRegistry[ToolRegistry]
+    
+    ToolRegistry --> Tools[src/tools/*.py]
     
     subgraph Interfaces [src/interfaces]
         Inputs
@@ -34,15 +38,25 @@ graph TD
 1.  **Assistant (`src/core/assistant.py`)**: The main loop. It listens for input, checks for exit commands, and streams input to the LLM backend while handling TTS output chunks.
 2.  **Interfaces (`src/interfaces/`)**: Abstract Base Classes (ABCs) that define the contract for speech input, speech output, and LLM backends.
 3.  **Implementations (`src/implementations/`)**: Concrete classes that fulfill the interfaces. Each implementation is isolated in its own sub-package.
-4.  **Configuration (`config.json`)**: A single JSON file at the project root that holds all settings (API keys, thresholds, rates).
+4.  **Logging (`src/utils/logger.py`)**: A utility that redirects `stdout` and `stderr` to both the terminal and rotating log files in the `/logs` directory.
+5.  **Configuration (`config.json`)**: A single JSON file at the project root that holds all settings (API keys, thresholds, rates, tool settings).
 
 ## Code Conventions
 
 -   **Interfaces First**: All major components must implement an interface defined in `src/interfaces/`.
 -   **Configuration**: Do not hardcode constants. Read from `config.json`.
 -   **Type Hinting**: Use full Python type hints for all method signatures.
--   **Output**: Use standard `print()` for console status (no complex logging framework yet).
+-   **Logging**: Use `print()` for console output. The logging system automatically captures this into log files.
+-   **Tools**: Tools do NOT use the interface/implementation pattern. They are simple functions registered with the `ToolRegistry`.
 -   **Error Handling**: Let exceptions bubble up unless specifically handling a known recoverable state.
+
+## Tools Architecture
+
+Unlike the core components, tools are designed for simplicity. They are standalone functions that register themselves with a central `ToolRegistry`.
+
+- **Registry (`src/core/tool_registry.py`)**: Manages the discovery and execution of tools.
+- **Definitions (`src/core/tools.py`)**: Data classes that define the schema (name, description, parameters) that the LLM uses to understand when to call a tool.
+- **Implementations (`src/tools/`)**: Modular Python files (e.g., `web_search.py`) containing the actual logic.
 
 ## Key Design Decisions
 
