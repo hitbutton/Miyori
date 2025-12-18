@@ -6,8 +6,10 @@ from src.core.tool_registry import ToolRegistry
 from src.tools.web_search import web_search_tool
 import json
 from pathlib import Path
+from src.utils.logger import setup_logging
 
 def main():
+    setup_logging()
     # Load config to check for enabled tools
     project_root = Path(__file__).parent.parent
     config_path = project_root / "config.json"

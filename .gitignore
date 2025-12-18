@@ -43,3 +43,4 @@ Thumbs.db
 *.local
 config.json
 TODO.md
+logs/
