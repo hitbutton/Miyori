@@ -124,7 +124,15 @@ def file_operations(operation: str, path: str, content: str = None) -> str:
 # Create the tool definition
 file_ops_tool = Tool(
     name="file_operations",
-    description="Read files, write files, or list directory contents. Read/List operations work anywhere on the system. Write operations are restricted to workspace/ or documents/.",
+    description=(
+        "Interact with the filesystem. Read/List operations work anywhere on the system (C:/, G:/, etc.). "
+        "Write operations are restricted to workspace/ or documents/.\n\n"
+        "GUIDANCE FOR SPEECH INPUT:\n"
+        "1. If the user mentions a drive letter (e.g., 'C drive', 'see Dr'), use the root path (e.g., 'C:/').\n"
+        "2. INFER PATHS: If the user refers to a folder seen in a previous 'list' output, "
+        "combine the previous path with the new folder name to create an absolute path.\n"
+        "3. PROACTIVE: If the user is vague but context suggests a path, try the most likely path. "
+        "You have full permission to explore the system for reading and listing."),
     parameters=[
         ToolParameter(
             name="operation",
