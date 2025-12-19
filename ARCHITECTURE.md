@@ -7,7 +7,7 @@
 
 Miyori is a modular voice assistant built in Python. The system follows a clean "Interface -> Implementation" pattern, orchestrated by a central assistant loop.
 
-```mermaid
+```mermaid 
 graph TD
     Main[src/main.py] --> Config[config.json]
     Main --> Assistant[VoiceAssistant]
@@ -40,58 +40,62 @@ graph TD
 
 ### Core Components
 
-1.  **Assistant (`src/core/assistant.py`)**: The main loop. It listens for input, checks for exit commands, and streams input to the LLM backend while handling TTS output chunks.
-2.  **Interfaces (`src/interfaces/`)**: Abstract Base Classes (ABCs) that define the contract for speech input, speech output, and LLM backends.
-3.  **Implementations (`src/implementations/`)**: Concrete classes that fulfill the interfaces. Each implementation is isolated in its own sub-package.
-4.  **Logging (`src/utils/logger.py`)**: A utility that redirects `stdout` and `stderr` to both the terminal and rotating log files in the `/logs` directory.
-5.  **Memory System (`src/memory/`)**: A four-tier cognitive memory system (Episodic, Semantic, Relational, Emotional) that allows Miyori to maintain long-term context and personality.
-6.  **Configuration (`config.json`)**: A single JSON file at the project root that holds all settings. Detailed descriptions can be found in [CONFIG.md](file:///g:/Miyori/CONFIG.md).
+* **Assistant (`src/core/assistant.py`)**: The main loop that orchestrates the system, listening for input and streaming results to the LLM and TTS engines.
+* **Memory System (`src/memory/`)**: A four-tier cognitive architecture (Episodic, Semantic, Relational, Emotional) that allows for long-term behavioral consistency.
+* **Interfaces (`src/interfaces/`)**: Abstract Base Classes (ABCs) that define the contractual requirements for speech input, output, and LLM backends.
+* **Implementations (`src/implementations/`)**: Concrete classes, isolated in sub-packages, that fulfill the defined interfaces.
+* **Logging (`src/utils/logger.py`)**: A utility redirecting `stdout`/`stderr` to capture all console output into terminal and rotating log files.
+* **Configuration (`config.json`)**: The central JSON file at the project root holding all system settings.
+
+---
+
+## Memory Architecture
+
+Miyori uses a human-like memory system designed for behavioral consistency rather than eidetic recall. It utilizes an abstracted memory store for structured data and vector embeddings for semantic retrieval.
+
+### Four-Tier Storage
+* **Episodic**: Summarized past conversations with emotional valence and importance scores.
+* **Semantic**: Distilled facts (e.g., "User works as an engineer") with confidence levels and version history.
+* **Relational**: High-level interaction norms, communication styles, and relationship phases.
+* **Emotional Thread**: Tracks current mood and continuity across recent interactions.
+
+### Processing Pipeline
+* **Write Gate**: Only stores data meeting specific criteria such as explicit requests, high emotion, or identity-defining facts.
+* **Async Embedding Queue**: Summaries are generated via LLM and queued for background processing to prevent TTS latency. 
+* **Prioritized Retrieval**: Context is built using a strict 1000-token budget with the following priority: Relational > Emotional > Recent Important > Semantic Facts > Relevant Episodic.
+* **Consolidation**: A periodic background task clusters related episodes to extract stable facts and prunes the database to stay within memory budgets.
+
+---
 
 ## Code Conventions
 
--   **Interfaces First**: All major components must implement an interface defined in `src/interfaces/`.
--   **Configuration**: Do not hardcode constants. Read from `config.json`.
--   **Type Hinting**: Use full Python type hints for all method signatures.
--   **Logging**: Use `print()` for console output. The logging system automatically captures this into log files.
--   **Tools**: Tools do NOT use the interface/implementation pattern. They are simple functions registered with the `ToolRegistry`.
--   **Error Handling**: Let exceptions bubble up unless specifically handling a known recoverable state.
-
-## Tools Architecture
-
-Unlike the core components, tools are designed for simplicity. They are standalone functions that register themselves with a central `ToolRegistry`.
-
-- **Registry (`src/core/tool_registry.py`)**: Manages the discovery and execution of tools.
-- **Definitions (`src/core/tools.py`)**: Data classes that define the schema (name, description, parameters) that the LLM uses to understand when to call a tool.
-- **Implementations (`src/tools/`)**: Modular Python files (e.g., `web_search.py`) containing the actual logic.
+* **Interfaces First**: All major components must implement an interface in `src/interfaces/`.
+* **Configuration**: Do not hardcode constants; read from `config.json`.
+* **Type Hinting**: Use full Python type hints for all method signatures.
+* **Logging**: Use `print()` for console output; the logger captures these automatically.
+* **Tools**: Standalone functions registered with the `ToolRegistry`.
+* **Async Safety**: Background tasks like memory processing must not block the main assistant loop.
 
 ## Key Design Decisions
 
 ### Streaming-First Architecture
-To minimize latency, the system is designed for streaming. The `ILLMBackend.generate_stream` method takes a callback `on_chunk`. The assistant passes a callback that immediately sends text chunks to the TTS engine (`ISpeechOutput.speak`).
+To minimize latency, `ILLMBackend.generate_stream` uses a callback to feed text chunks immediately to the TTS engine.
 
 ### Dependency Injection
-The `VoiceAssistant` class does not instantiate its dependencies. They are passed in via the constructor in `src/main.py`. This allows for easy swapping of implementations (e.g., testing vs. production).
+`VoiceAssistant` dependencies are passed via the constructor in `src/main.py` to allow easy swapping of implementations.
 
 ## Extension Points
 
 ### Adding a New Capability
-To replace a component (e.g., swapping Google Speech for Whisper):
-1.  Create a new directory in `src/implementations/speech/whisper/`.
-2.  Create a class that implements `ISpeechInput`.
-3.  Add necessary config keys to `config.json`.
-4.  Update `src/main.py` to instantiate your new class and pass it to the assistant.
-The same pattern applies for:
-   - `ISpeechInput` in `src/implementations/speech/`
-   - `ISpeechOutput` in `src/implementations/tts/`
-   - `ILLMBackend` in `src/implementations/llm/`
+To replace a component:
+1.  Create a class in `src/implementations/` that fulfills the relevant interface.
+2.  Add required config keys to `config.json`.
+3.  Instantiate and inject the new class in `src/main.py`.
+
+---
 
 ## Feature Planning Workflow
-
-We use a transient documentation pattern for planning features.
-
-1.  **Create Plan**: When starting a feature, create `FEATURE_[feature_name].md` in the root.
-    -   Outline requirements.
-    -   Draft valid code snippets or architecture changes.
-2.  **Implement**: Refer to the feature file during coding.
-3.  **Cleanup**: **Delete** the `FEATURE_*.md` file when the feature is fully implemented and verified.
-4.  **Update**: If architectural changes were made, update this `ARCHITECTURE.md` file.
+1.  **Create Plan**: Draft `FEATURE_[name].md` for requirements and architecture.
+2.  **Implement**: Follow the plan and refer to this doc for conventions.
+3.  **Cleanup**: Delete the `FEATURE_*.md` file once the feature is verified.
+4.  **Update**: Revise this `ARCHITECTURE.md` if structural changes were made.
