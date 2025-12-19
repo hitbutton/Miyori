@@ -1,11 +1,12 @@
 from google import genai
 from typing import Optional
 from src.utils.memory_logger import memory_logger
+from src.utils.config import Config
 
 class MemoryGate:
     def __init__(self, client: genai.Client):
         self.client = client
-        self.model_name = "gemini-1.5-flash-8b"
+        self.model_name = Config.data.get("memory", {}).get("gate_model")
 
     async def should_remember(self, user_msg: str, assistant_msg: str) -> bool:
         """
