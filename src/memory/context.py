@@ -144,4 +144,6 @@ class ContextBuilder:
         
         from src.utils.memory_logger import memory_logger
         memory_logger.log_event("context_build_complete", {"total_tokens": tokens_used})
-        return "".join(context_parts).strip()
+        built_context = "".join(context_parts).strip()
+        memory_logger.log_event("context_final", {"context": built_context})
+        return built_context
