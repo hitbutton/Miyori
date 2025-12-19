@@ -18,18 +18,23 @@ graph TD
     Assistant --> Brain[ILLMBackend]
     Assistant --> ToolRegistry[ToolRegistry]
     
+    Brain --> Memory[src/memory/context.py]
+    Memory --> Store[src/memory/sqlite_store.py]
+    
     ToolRegistry --> Tools[src/tools/*.py]
     
     subgraph Interfaces [src/interfaces]
         Inputs
         Outputs
         Brain
+        IMemory[src/interfaces/memory.py]
     end
     
     subgraph Implementations [src/implementations]
         Porcupine[PorcupineSpeechInput] -.-> Inputs
         Kokoro[KokoroTTSOutput] -.-> Outputs
         GoogleAI[GoogleAIBackend] -.-> Brain
+        SQLiteStore[SQLiteMemoryStore] -.-> IMemory
     end
 ```
 
@@ -39,7 +44,8 @@ graph TD
 2.  **Interfaces (`src/interfaces/`)**: Abstract Base Classes (ABCs) that define the contract for speech input, speech output, and LLM backends.
 3.  **Implementations (`src/implementations/`)**: Concrete classes that fulfill the interfaces. Each implementation is isolated in its own sub-package.
 4.  **Logging (`src/utils/logger.py`)**: A utility that redirects `stdout` and `stderr` to both the terminal and rotating log files in the `/logs` directory.
-5.  **Configuration (`config.json`)**: A single JSON file at the project root that holds all settings (API keys, thresholds, rates, tool settings).
+5.  **Memory System (`src/memory/`)**: A four-tier cognitive memory system (Episodic, Semantic, Relational, Emotional) that allows Miyori to maintain long-term context and personality.
+6.  **Configuration (`config.json`)**: A single JSON file at the project root that holds all settings. Detailed descriptions can be found in [CONFIG.md](file:///g:/Miyori/CONFIG.md).
 
 ## Code Conventions
 
