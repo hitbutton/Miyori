@@ -19,7 +19,7 @@ class GoogleAIBackend(ILLMBackend):
             
         llm_config = config.get("llm", {})
         self.api_key = llm_config.get("api_key")
-        self.model_name = llm_config.get("model", "gemini-2.0-flash-exp")
+        self.model_name = llm_config.get("model")
 
         # Load System Instructions
         system_instruction_file = llm_config.get("system_instruction_file", "system_instructions.txt")
