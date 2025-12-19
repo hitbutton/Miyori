@@ -3,6 +3,8 @@ import os
 
 # Add project root to path so we can import src
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from src.utils.config import Config
+Config.load()
 
 from src.interfaces.speech_input import ISpeechInput
 from src.implementations.speech.porcupine_speech_input import PorcupineSpeechInput

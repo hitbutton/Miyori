@@ -10,7 +10,7 @@ Config.load()
 from src.interfaces.llm_backend import ILLMBackend
 from src.implementations.llm.google_ai_backend import GoogleAIBackend
 
-def run_llm_test(backend: ILLMBackend, prompt: str = "this is a test of the LLM backend interface. Is it working correctly?"):
+def run_llm_test(backend: ILLMBackend, prompt: str = "hey Miyori, I'm testing the LLM backend interface. This interaction isnt important so don't worry about remembering it. Just tell me if you're there."):
     """
     Test the LLM backend interface.
     This function interacts strictly with the ILLMBackend interface.
