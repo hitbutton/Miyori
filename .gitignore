@@ -49,3 +49,6 @@ workspace/
 
 # Models
 models/
+
+#uv
+.python-version
