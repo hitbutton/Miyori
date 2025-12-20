@@ -1,12 +1,10 @@
-from src.implementations.speech.horrible_speech_input import HorribleSpeechInput
+from src.implementations.speech.porcupine_cobra_vosk import PorcupineCobraVosk
 from src.implementations.tts.kokoro_tts_output import KokoroTTSOutput
 from src.implementations.llm.google_ai_backend import GoogleAIBackend
 from src.core.assistant import VoiceAssistant
 from src.core.tool_registry import ToolRegistry
 from src.tools.web_search import web_search_tool
 from src.tools.file_ops import file_ops_tool
-import json
-from pathlib import Path
 from src.utils.logger import setup_logging
 from src.utils.config import Config
 
@@ -14,7 +12,7 @@ def main():
     Config.load()
     setup_logging()
             
-    speech_input = HorribleSpeechInput()
+    speech_input = PorcupineCobraVosk()
     speech_output = KokoroTTSOutput()
     llm_backend = GoogleAIBackend()
     

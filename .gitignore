@@ -46,3 +46,6 @@ memory.db*
 TODO.md
 logs/
 workspace/
+
+# Models
+models/

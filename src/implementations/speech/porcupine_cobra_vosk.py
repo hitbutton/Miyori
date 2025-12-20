@@ -2,28 +2,34 @@ import struct
 import pvcobra
 import pyaudio
 import pvporcupine
-import speech_recognition as sr
+import json
+from vosk import Model, KaldiRecognizer
 from collections import deque
 from src.interfaces.speech_input import ISpeechInput
 from src.utils.config import Config
 
-class HorribleSpeechInput(ISpeechInput):
+class PorcupineCobraVosk(ISpeechInput):
     def __init__(self):
         speech_config = Config.data.get("speech_input", {})
         self.access_key = speech_config.get("porcupine_access_key")
-        
+        self.active_listen_timeout = speech_config.get("active_listen_timeout", 30)
+
         if not self.access_key:
             raise ValueError("Access key not found in config.json")
 
         # 1. Initialize Engines
-        # Use the same sample rate for everything (Picovoice engines use 16kHz)
         self.porcupine = self._init_porcupine(speech_config)
         self.cobra = pvcobra.create(access_key=self.access_key)
         
-        self.sample_rate = self.porcupine.sample_rate # 16000
-        self.frame_length = self.porcupine.frame_length # 512
+        self.sample_rate = self.porcupine.sample_rate 
+        self.frame_length = self.porcupine.frame_length 
         
-        # 2. Setup Audio Stream
+        # 2. Initialize Vosk
+        model_path = speech_config.get("vosk_model_path")
+        self.vosk_model = Model(model_path)
+        self.vosk_recognizer = KaldiRecognizer(self.vosk_model, self.sample_rate)
+
+        # 3. Setup Audio Stream
         self.pa = pyaudio.PyAudio()
         self.audio_stream = self.pa.open(
             rate=self.sample_rate,
@@ -33,9 +39,6 @@ class HorribleSpeechInput(ISpeechInput):
             frames_per_buffer=self.frame_length
         )
 
-        # 3. Utilities
-        self.recognizer = sr.Recognizer()
-        # Pre-roll buffer to catch the start of sentences (approx 0.5 seconds)
         self.pre_roll_count = 15 
         self.pre_roll_buffer = deque(maxlen=self.pre_roll_count)
 
@@ -47,49 +50,39 @@ class HorribleSpeechInput(ISpeechInput):
         return pvporcupine.create(access_key=self.access_key, keywords=keywords)
 
     def listen(self, require_wake_word: bool = True) -> str | None:
-        """
-        Uses Porcupine for wake-word, Cobra for VAD, and Google for ASR.
-        """
         try:
-            # --- PHASE 1: WAKE WORD DETECTION ---
             if require_wake_word:
                 print("[Status] Waiting for wake word...")
                 while True:
                     pcm = self._read_frame()
-                    self.pre_roll_buffer.append(pcm) # Always keep a bit of history
+                    self.pre_roll_buffer.append(pcm)
                     if self.porcupine.process(pcm) >= 0:
                         print("[Status] Wake word detected!")
                         break
 
-            # --- PHASE 2: VOICE ACTIVITY DETECTION (COBRA) ---
             print("[Status] Listening for command...")
-            recording_buffer = list(self.pre_roll_buffer) # Start with the pre-roll history
+            recording_buffer = list(self.pre_roll_buffer)
             
             is_speaking = False
             silence_frames = 0
-            max_silence = 25  # ~0.8 seconds of silence to trigger end-of-speech
-            max_recording_time = 15 * (self.sample_rate / self.frame_length) # 15 sec limit
+            max_silence = 25
+            max_recording_time = self.active_listen_timeout * (self.sample_rate / self.frame_length)
 
             for _ in range(int(max_recording_time)):
                 pcm = self._read_frame()
                 recording_buffer.append(pcm)
                 
-                # Cobra returns a probability (0.0 to 1.0)
                 voice_probability = self.cobra.process(pcm)
                 
-                if voice_probability > 0.6: # Threshold for "speech"
-                    if not is_speaking:
-                        is_speaking = True
+                if voice_probability > 0.6:
+                    if not is_speaking: is_speaking = True
                     silence_frames = 0
                 elif is_speaking:
                     silence_frames += 1
                 
-                # Exit loop if user stops talking
                 if is_speaking and silence_frames > max_silence:
                     print("[Status] End of speech detected.")
                     break
-            else:
-                print("[Status] Recording timed out.")
 
             
             if not is_speaking:
@@ -102,27 +95,29 @@ class HorribleSpeechInput(ISpeechInput):
             return None
 
     def _read_frame(self):
-        """Reads and unpacks a single audio frame."""
         data = self.audio_stream.read(self.frame_length, exception_on_overflow=False)
         return struct.unpack_from("h" * self.frame_length, data)
 
     def _transcribe(self, pcm_frames):
-        """Converts PCM list to AudioData and sends to Google."""
-        print("[Status] Transcribing...")
-        # Flatten the list of frames and convert to bytes
+        """Converts PCM frames to text using Vosk."""
+        print("[Status] Transcribing with Vosk...")
+        
+        # Flatten and convert to raw bytes
         flat_pcm = [item for frame in pcm_frames for item in frame]
         audio_bytes = struct.pack("h" * len(flat_pcm), *flat_pcm)
         
-        audio_data = sr.AudioData(audio_bytes, self.sample_rate, 2) # 2 bytes for 16-bit
-        
-        try:
-            text = self.recognizer.recognize_google(audio_data)
+        # Vosk processing
+        if self.vosk_recognizer.AcceptWaveform(audio_bytes):
+            result = json.loads(self.vosk_recognizer.Result())
+        else:
+            result = json.loads(self.vosk_recognizer.FinalResult())
+            
+        text = result.get("text", "")
+        if text:
             print(f"Result: {text}")
             return text
-        except sr.UnknownValueError:
-            print("Google could not understand audio.")
-        except sr.RequestError as e:
-            print(f"Google API error: {e}")
+        
+        print("Vosk could not understand audio.")
         return None
 
     def __del__(self):
