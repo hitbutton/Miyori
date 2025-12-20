@@ -1,0 +1,27 @@
+@echo off
+setlocal
+cd /d %~dp0
+
+if not exist .venv (
+    echo Virtual environment .venv not found.
+    echo Please create it first using: py 3.11 -m venv .venv
+    pause
+    exit /b
+)
+
+echo Activating virtual environment...
+call .venv\Scripts\activate
+
+echo Starting Consolidation...
+title Consolidation
+python -m src.main
+
+if %ERRORLEVEL% neq 0 (
+    echo.
+    echo Application exited with error code %ERRORLEVEL%
+    pause
+)
+
+pause
+
+python src\utils\run_consolidation.py %*
