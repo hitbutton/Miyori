@@ -17,17 +17,20 @@ class Summarizer:
         # Use a cheap/fast model for summarization
         self.model_name = llm_config.get("summarizer_model")
 
-    async def create_summary(self, user_msg: str, assistant_msg: str) -> str:
+    async def create_summary(self, user_msg: str, miyori_msg: str) -> str:
         """Create a semantic summary of the exchange using the LLM."""
         if not self.client:
             # Fallback to simple concatenation if LLM unavailable
-            return f"User: {user_msg[:100]} | Assistant: {assistant_msg[:100]}"
+            return f"User: {user_msg[:100]} | miyori: {miyori_msg[:100]}"
 
-        prompt = f"""Summarize this conversation exchange in 2-3 sentences.
+        prompt = f"""Summarize this conversation exchange in 1-2 sentences.
+This summary will be used in Miyrori's long-term memory system.
+The user is using voice recognition and their input may contain errors.
+Miyori's interpretation of the user messages is often more accurate than the user's text.
 Preserve: key facts, emotions, decisions, and context.
 
 User: {user_msg}
-Assistant: {assistant_msg}
+Miyori: {miyori_msg}
 
 Summary:"""
 

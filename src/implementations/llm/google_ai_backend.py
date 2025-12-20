@@ -89,25 +89,25 @@ class GoogleAIBackend(ILLMBackend):
             return asyncio.run_coroutine_threadsafe(coro, self._loop)
         return None
 
-    async def _store_turn(self, user_msg: str, assistant_msg: str):
+    async def _store_turn(self, user_msg: str, miyori_msg: str):
         """Summarize and store the conversation turn."""
         try:
             # Phase 2: Memory Gating
             if self.feature_flags.get("enable_gating", False):
-                if not await self.gate.should_remember(user_msg, assistant_msg):
+                if not await self.gate.should_remember(user_msg, miyori_msg):
                     print("Memory: Turn skipped by Gate.")
                     return
 
             print(f"Memory: Summarizing turn...")
-            summary = await self.summarizer.create_summary(user_msg, assistant_msg)
-            full_text = {"user": user_msg, "assistant": assistant_msg}
+            summary = await self.summarizer.create_summary(user_msg, miyori_msg)
+            full_text = {"user": user_msg, "miyori": miyori_msg}
             
             print(f"Memory: Storing episode...")
             await self.episodic_manager.add_episode(summary, full_text)
             print(f"Memory: Episode stored successfully.")
             
             # Phase 3: Emotional Continuity
-            self.emotional_tracker.update_thread(user_msg, assistant_msg)
+            self.emotional_tracker.update_thread(user_msg, miyori_msg)
             
         except Exception as e:
             import sys

@@ -8,7 +8,7 @@ class MemoryGate:
         self.client = client
         self.model_name = Config.data.get("memory", {}).get("gate_model")
 
-    async def should_remember(self, user_msg: str, assistant_msg: str) -> bool:
+    async def should_remember(self, user_msg: str, miyori_msg: str) -> bool:
         """
         Decide if a conversation turn should be stored using LLM-aided gating.
         """
@@ -22,17 +22,18 @@ class MemoryGate:
         if not self.client:
             return True # Fallback to true if no client
 
-        prompt = f"""Evaluate if this conversation exchange should be remembered long-term.
-Should we remember this if it contains:
-- Identity-defining facts about the user (e.g., job, family, core beliefs)
-- High emotional intensity (e.g., strong stress, joy, anger)
-- Significant user decisions, goals, or commitments
-- Information that would causes relational damage if forgotten
+        prompt = f"""Evaluate if this conversation exchange should be approved for Miyori's memory.
+We should remember this if it contains:
+- Important facts about the user
+- Useful details about the working environment
+- Significant decisions, goals, or commitments
+- Information that could causes relational damage if forgotten
+Without approval, this exchange will be forgotten.
 
 User: {user_msg}
-Assistant: {assistant_msg}
+Miyori: {miyori_msg}
 
-Answer with only 'YES' or 'NO':"""
+Answer with 'YES' or 'NO' followed by ' --- <one sentence explaining reasoning>':"""
 
         try:            
             print("Memory Gate: Evaluating with LLM...")
@@ -49,7 +50,7 @@ Answer with only 'YES' or 'NO':"""
                 "decision": decision,
                 "should_remember": should_rem,
                 "user_msg": user_msg[:100],
-                "assistant_msg": assistant_msg[:100]
+                "miyori_msg": miyori_msg[:100]
             })
             return should_rem
         except Exception as e:

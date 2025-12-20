@@ -1,6 +1,6 @@
 # Miyori AI Agent Instructions
 
-Voice-activated AI assistant with modular, interface-based architecture.
+Miyori is a Modular Voice-Responsive Agent project.
 
 **Read `ARCHITECTURE.md` first** - it contains all conventions, design decisions, and extension patterns.
 

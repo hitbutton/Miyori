@@ -5,7 +5,7 @@ class ImportanceScorer:
     """Calculates importance scores and handles time-based decay."""
 
     @staticmethod
-    def calculate_importance(user_msg: str, assistant_msg: str) -> float:
+    def calculate_importance(user_msg: str, miyori_msg: str) -> float:
         """
         Calculate importance score.
         Returns 0-1 float.

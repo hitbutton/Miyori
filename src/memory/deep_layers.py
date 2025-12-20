@@ -51,7 +51,7 @@ class EmotionalTracker:
     def __init__(self, store: IMemoryStore):
         self.store = store
 
-    def update_thread(self, user_msg: str, assistant_msg: str):
+    def update_thread(self, user_msg: str, miyori_msg: str):
         """Update the current emotional thread based on the latest exchange."""
         # Simple Phase 3 implementation: check for emotion keywords
         # In a real system, this would be an LLM call or sentiment analysis

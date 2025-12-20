@@ -1,7 +1,7 @@
 from src.implementations.speech.porcupine_cobra_vosk import PorcupineCobraVosk
 from src.implementations.tts.kokoro_tts_output import KokoroTTSOutput
 from src.implementations.llm.google_ai_backend import GoogleAIBackend
-from src.core.assistant import VoiceAssistant
+from core.miyori import MiyoriCore
 from src.core.tool_registry import ToolRegistry
 from src.tools.web_search import web_search_tool
 from src.tools.file_ops import file_ops_tool
@@ -25,13 +25,13 @@ def main():
         if tools_config.get("file_ops", {}).get("enabled", False):
             tool_registry.register(file_ops_tool)
     
-    assistant = VoiceAssistant(
+    miyori = MiyoriCore(
         speech_input=speech_input, 
         speech_output=speech_output, 
         llm=llm_backend,
         tool_registry=tool_registry
     )
-    assistant.run()
+    miyori.run()
 
 if __name__ == "__main__":
     main()

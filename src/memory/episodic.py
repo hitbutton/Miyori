@@ -80,7 +80,7 @@ class EpisodicMemoryManager:
 
     async def add_episode(self, summary: str, full_text: Dict[str, str], importance: float = None):
         if importance is None:
-            importance = ImportanceScorer.calculate_importance(full_text.get('user', ''), full_text.get('assistant', ''))
+            importance = ImportanceScorer.calculate_importance(full_text.get('user', ''), full_text.get('miyori', ''))
             
         episode_data = {
             'summary': summary,

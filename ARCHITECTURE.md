@@ -5,18 +5,18 @@
 
 ## System Overview
 
-Miyori is a modular voice assistant built in Python. The system follows a clean "Interface -> Implementation" pattern, orchestrated by a central assistant loop.
+Miyori is a modular voice-reponsive agent built in Python. The system follows a clean "Interface -> Implementation" pattern, orchestrated by a central core loop.
 
 ```mermaid 
 graph TD
     Main[src/main.py] --> Config[config.json]
-    Main --> Assistant[VoiceAssistant]
+    Main --> Miyori[MiyoriCore]
     Main --> Logger[src/utils/logger.py]
     
-    Assistant --> Inputs[ISpeechInput]
-    Assistant --> Outputs[ISpeechOutput]
-    Assistant --> Brain[ILLMBackend]
-    Assistant --> ToolRegistry[ToolRegistry]
+    Miyori --> Inputs[ISpeechInput]
+    Miyori --> Outputs[ISpeechOutput]
+    Miyori --> Brain[ILLMBackend]
+    Miyori --> ToolRegistry[ToolRegistry]
     
     Brain --> Memory[src/memory/context.py]
     Memory --> Store[src/memory/sqlite_store.py]
@@ -40,7 +40,7 @@ graph TD
 
 ### Core Components
 
-* **Assistant (`src/core/assistant.py`)**: The main loop that orchestrates the system, listening for input and streaming results to the LLM and TTS engines.
+* **Miyori Core (`src/core/miyori.py`)**: The main loop that orchestrates the system, listening for input and streaming results to the LLM and TTS engines.
 * **Memory System (`src/memory/`)**: A four-tier cognitive architecture (Episodic, Semantic, Relational, Emotional) that allows for long-term behavioral consistency.
 * **Interfaces (`src/interfaces/`)**: Abstract Base Classes (ABCs) that define the contractual requirements for speech input, output, and LLM backends.
 * **Implementations (`src/implementations/`)**: Concrete classes, isolated in sub-packages, that fulfill the defined interfaces.
@@ -74,7 +74,7 @@ Miyori uses a human-like memory system designed for behavioral consistency rathe
 * **Type Hinting**: Use full Python type hints for all method signatures.
 * **Logging**: Use `print()` for console output; the logger captures these automatically.
 * **Tools**: Standalone functions registered with the `ToolRegistry`.
-* **Async Safety**: Background tasks like memory processing must not block the main assistant loop.
+* **Async Safety**: Background tasks like memory processing must not block the main core loop.
 
 ## Key Design Decisions
 
@@ -82,7 +82,7 @@ Miyori uses a human-like memory system designed for behavioral consistency rathe
 To minimize latency, `ILLMBackend.generate_stream` uses a callback to feed text chunks immediately to the TTS engine.
 
 ### Dependency Injection
-`VoiceAssistant` dependencies are passed via the constructor in `src/main.py` to allow easy swapping of implementations.
+`MiyoriCore` dependencies are passed via the constructor in `src/main.py` to allow easy swapping of implementations.
 
 ## Extension Points
 

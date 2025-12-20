@@ -51,7 +51,7 @@ Stores specific conversations and events. This is the entry point for all new in
 | :--- | :--- | :--- |
 | `id` | UUID | Primary Key. |
 | `timestamp` | DATETIME | Interaction time. |
-| `full_text` | JSON | Raw exchange (User/Assistant). |
+| `full_text` | JSON | Raw exchange (User/Miyori). |
 | `summary` | TEXT | LLM-condensed summary (100-150 tokens). |
 | `embedding` | BLOB | 768-dim vector (Gemini `text-embedding-004`). |
 | `importance` | REAL | 0.0-1.0 score (Emotion + Utility). |

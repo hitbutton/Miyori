@@ -8,7 +8,7 @@ from src.core.tool_registry import ToolRegistry
 from typing import Dict, Any, Callable
 from src.utils.config import Config
 
-class VoiceAssistant:
+class MiyoriCore:
     def __init__(self, 
                  speech_input: ISpeechInput,
                  speech_output: ISpeechOutput,

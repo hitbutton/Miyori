@@ -1,8 +1,7 @@
-# Voice-Activated AI Assistant
+# Miyori
 
-## Project Goal
-Miyori is a modular voice assistant built in Python.
+Miyori is a modular voice-responsive agent project built in Python.
 
 ## Documentation
-- **Architecture**: [ARCHITECTURE.md](file:///g:/Miyori/ARCHITECTURE.md)
-- **Configuration**: [CONFIG.md](file:///g:/Miyori/CONFIG.md)
+- **Architecture**: [ARCHITECTURE.md](ARCHITECTURE.md)
+- **Project Goals**: [MVRA_CORE.md](MVRA_CORE.md)

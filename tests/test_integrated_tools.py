@@ -20,10 +20,10 @@ def run_test_case(backend, registry, prompt):
     print(f"\n[USER]: {prompt}")
     
     # Store complete response for debugging/validation
-    assistant_response = []
+    miyori_response = []
     
     def on_chunk(text: str):
-        assistant_response.append(text)
+        miyori_response.append(text)
         print(text, end="", flush=True)
         
     def on_tool_call(name: str, args: Dict[str, Any]) -> str:
@@ -45,7 +45,7 @@ def run_test_case(backend, registry, prompt):
         on_tool_call=on_tool_call
     )
     print("\n" + "-"*50)
-    return "".join(assistant_response)
+    return "".join(miyori_response)
 
 def test_programmatic_verification():
     print("🚀 Starting Programmatic Truth Verification Test...")
