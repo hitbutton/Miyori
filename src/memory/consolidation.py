@@ -56,7 +56,7 @@ class EpisodeClustering:
         # Perform HDBSCAN clustering
         clusterer = hdbscan.HDBSCAN(
             min_cluster_size=self.min_cluster_size,
-            metric='cosine'
+            metric="euclidean"
         )
         cluster_labels = clusterer.fit_predict(embeddings_array)
 

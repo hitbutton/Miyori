@@ -17,6 +17,7 @@ dependencies = [
     "pvcobra==2.1.0",
     "pvporcupine>=4.0.1",
     "pyaudio>=0.2.14",
+    "scikit-learn>=1.8.0",
     "sounddevice>=0.5.3",
     "vosk>=0.3.45",
 ]

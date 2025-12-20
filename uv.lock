@@ -825,6 +825,7 @@ dependencies = [
     { name = "pvcobra" },
     { name = "pvporcupine" },
     { name = "pyaudio" },
+    { name = "scikit-learn" },
     { name = "sounddevice" },
     { name = "vosk" },
 ]
@@ -840,6 +841,7 @@ requires-dist = [
     { name = "pvcobra", specifier = "==2.1.0" },
     { name = "pvporcupine", specifier = ">=4.0.1" },
     { name = "pyaudio", specifier = ">=0.2.14" },
+    { name = "scikit-learn", specifier = ">=1.8.0" },
     { name = "sounddevice", specifier = ">=0.5.3" },
     { name = "vosk", specifier = ">=0.3.45" },
 ]
