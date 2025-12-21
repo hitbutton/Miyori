@@ -71,6 +71,8 @@ class ContextBuilder:
             user_message: Current user message (for backward compatibility)
             tool_results: Results from active memory search tool (privileged budget)
         """
+        from src.utils.memory_logger import memory_logger
+
         context_parts = []
         tokens_used = 0
 
@@ -85,7 +87,6 @@ class ContextBuilder:
             if section_tokens <= tool_budget:
                 context_parts.append(section_text)
                 tokens_used += section_tokens
-                from src.utils.memory_logger import memory_logger
                 memory_logger.log_event("context_section", {
                     "label": "TOOL_RESULTS",
                     "tokens": section_tokens,
@@ -118,7 +119,6 @@ class ContextBuilder:
                 )
                 loop.close()
             except Exception as e:
-                from src.utils.memory_logger import memory_logger
                 memory_logger.log_event("async_memory_access_error", {"error": str(e)})
 
         # 3. Passive Mode Memories (if cache available)
@@ -133,7 +133,7 @@ class ContextBuilder:
             })
         else:
             # Fallback to synchronous search (backward compatibility)
-            memory_logger.log_event("cache_miss_fallback")
+            memory_logger.log_event("cache_miss_fallback", {})
 
             # Recent high importance (last 7 days) - fallback method
             all_episodes = self.store.search_episodes([0.0]*768, limit=100, status='active')
