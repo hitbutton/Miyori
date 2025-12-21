@@ -48,12 +48,26 @@ class GoogleAIBackend(ILLMBackend):
             from src.memory.summarizer import Summarizer
             from src.memory.context import ContextBuilder
             from src.memory.gates import MemoryGate
-            
+            from src.memory.memory_retriever import MemoryRetriever
+            from src.memory.async_memory_stream import AsyncMemoryStream
+
             self.store = SQLiteMemoryStore()
             self.embedding_service = EmbeddingService()
             self.episodic_manager = EpisodicMemoryManager(self.store, self.embedding_service)
             self.summarizer = Summarizer(self.client)
-            self.context_builder = ContextBuilder(self.store, self.episodic_manager)
+
+            # Dual-mode memory components
+            self.memory_retriever = MemoryRetriever(self.store)
+            self.async_memory_stream = AsyncMemoryStream(
+                self.memory_retriever,
+                self.embedding_service
+            )
+
+            self.context_builder = ContextBuilder(
+                self.store,
+                self.episodic_manager,
+                self.async_memory_stream
+            )
             self.gate = MemoryGate(self.client)
             
             # Phase 3 Components
@@ -68,14 +82,16 @@ class GoogleAIBackend(ILLMBackend):
             memory_config = Config.data.get("memory", {})
             self.memory_enabled = memory_config.get("enabled", True)
             self.feature_flags = memory_config.get("feature_flags", {})
-            
+
             # Async Background Loop for memory tasks
             self._loop = asyncio.new_event_loop()
             self._loop_thread = threading.Thread(target=self._loop.run_forever, daemon=True)
             self._loop_thread.start()
-            
+
+            # Start async memory streaming
             if self.memory_enabled:
-                print("Memory system initialized and enabled.")
+                self._run_async(self.async_memory_stream.start())
+                print("Memory system initialized and enabled with dual-mode retrieval.")
         except Exception as e:
             print(f"Warning: Failed to initialize memory system: {e}")
             self.memory_enabled = False
@@ -102,6 +118,10 @@ class GoogleAIBackend(ILLMBackend):
             print(f"Memory: Storing episode...")
             await self.episodic_manager.add_episode(summary, full_text)
             print(f"Memory: Episode stored successfully.")
+
+            # Add to async memory stream for next turn prefetching
+            if hasattr(self, 'async_memory_stream'):
+                self.async_memory_stream.add_turn_context(user_msg, miyori_msg)
             
         except Exception as e:
             import sys
@@ -111,6 +131,14 @@ class GoogleAIBackend(ILLMBackend):
         """Resets the conversation history."""
         print("Resetting conversation context...")
         self.chat_session = None
+        # Clear async memory stream context
+        if hasattr(self, 'async_memory_stream'):
+            self.async_memory_stream._recent_turns.clear()
+
+    async def _cleanup_async_memory(self):
+        """Cleanup async memory stream."""
+        if hasattr(self, 'async_memory_stream'):
+            await self.async_memory_stream.stop()
 
     def llm_chat(
         self,
