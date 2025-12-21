@@ -43,6 +43,7 @@ Thumbs.db
 *.local
 config.json
 memory.db*
+*.sqbpro
 TODO.md
 logs/
 workspace/
