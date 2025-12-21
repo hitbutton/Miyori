@@ -17,18 +17,25 @@ class Summarizer:
         # Use a cheap/fast model for summarization
         self.model_name = llm_config.get("summarizer_model")
 
-    async def create_summary(self, user_msg: str, miyori_msg: str) -> str:
-        """Create a semantic summary of the exchange using the LLM."""
+    async def create_summary(self, user_msg: str, miyori_msg: str, recent_context: list[str] = None) -> str:
+        """Create a semantic summary of the exchange using the LLM, with optional recent conversation context."""
         if not self.client:
             # Fallback to simple concatenation if LLM unavailable
             return f"User: {user_msg[:100]} | miyori: {miyori_msg[:100]}"
+
+        # Build context from recent turns if available
+        context_section = ""
+        if recent_context and len(recent_context) > 0:
+            context_section = "\n\nRecent conversation context:\n" + "\n\n".join(recent_context) + "\n\n"
 
         prompt = f"""Summarize this conversation exchange in 1-2 sentences.
 This summary will be used in Miyrori's long-term memory system.
 The user is using voice recognition and their input may contain errors.
 Miyori's interpretation of the user messages is often more accurate than the user's text.
-Preserve: key facts, emotions, decisions, and context.
+Focus primarily on the most recent messages, using earlier turns only for supporting context.
+Preserve: key facts, emotions, decisions. {context_section} 
 
+Current exchange:
 User: {user_msg}
 Miyori: {miyori_msg}
 

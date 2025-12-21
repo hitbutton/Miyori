@@ -112,7 +112,16 @@ class GoogleAIBackend(ILLMBackend):
                     return
 
             print(f"Memory: Summarizing turn...")
-            summary = await self.summarizer.create_summary(user_msg, miyori_msg)
+
+            # Get recent context from async memory stream (up to 3 previous turns)
+            recent_context = None
+            if hasattr(self, 'async_memory_stream'):
+                # Get the recent turns but exclude the current turn being summarized
+                recent_turns = self.async_memory_stream._recent_turns.copy()
+                if recent_turns:
+                    recent_context = recent_turns
+
+            summary = await self.summarizer.create_summary(user_msg, miyori_msg, recent_context)
             full_text = {"user": user_msg, "miyori": miyori_msg}
             
             print(f"Memory: Storing episode...")
