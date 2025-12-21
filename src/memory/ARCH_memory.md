@@ -5,9 +5,10 @@
 This document details the architecture and implementation of the currently deployed Human-Like Memory System. The system distinguishes itself from standard vector stores by implementing a **lossy, narrative-driven architecture** optimized for behavioral consistency rather than perfect recall.
 
 ### Core Architecture Principles
-1.  **Narrative Editing:** The system actively summarizes, compresses, and forgets information to maintain a coherent identity, rather than functioning as a static log.
-2.  **Four-Tier Hierarchy:** Data flows from raw experience (Episodic) to distilled knowledge (Semantic) to core personality (Relational).
-3.  **Strict Context Budget:** Response generation respects a strict token limit, prioritizing immediate emotional context and personality over older facts.
+**Narrative Editing:** The system actively summarizes, compresses, and forgets information to maintain a coherent identity, rather than functioning as a static log.
+**Real-Time Responsiveness:** All memory operations must be non-blocking. The async embedding queue ensures that remembering never delays response generation or TTS—the conversational experience takes absolute priority
+**Living Knowledge Base:**
+The system actively manages contradictions, updates confidence scores, and triggers passive confirmations. Memory isn't static storage—it's a reasoner that adapts to new information.
 
 ---
 
