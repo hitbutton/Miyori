@@ -14,22 +14,12 @@ class ILLMBackend(ABC):
     """Interface for LLM backend implementations"""
     
     @abstractmethod
-    def generate_stream(self, prompt: str, on_chunk: Callable[[str], None]) -> None:
-        """Generate an AI response with streaming chunks.
-        
-        Args:
-            prompt: The user's input text to generate a response for
-            on_chunk: Callback function called with each text chunk as it arrives
-        """
-        pass
-
-    @abstractmethod
     def reset_context(self) -> None:
         """Reset the conversation context (history)."""
         pass
 
     @abstractmethod
-    def generate_stream_with_tools(
+    def llm_chat(
         self,
         prompt: str,
         tools: List[Tool],
@@ -37,7 +27,7 @@ class ILLMBackend(ABC):
         on_tool_call: Callable[[str, Dict[str, Any]], str]
     ) -> None:
         """Generate an AI response with streaming chunks and tool support.
-        
+
         Args:
             prompt: The user's input text
             tools: List of available tools

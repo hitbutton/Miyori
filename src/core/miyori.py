@@ -8,6 +8,7 @@ from src.core.tool_registry import ToolRegistry
 from typing import Dict, Any, Callable
 from src.utils.config import Config
 
+
 class MiyoriCore:
     def __init__(self, 
                  speech_input: ISpeechInput,
@@ -55,11 +56,11 @@ class MiyoriCore:
             def speak_chunk(chunk: str) -> None:
                 self.speech_output.speak(chunk)
             
-            # Use streaming or tool-enabled generation
+            # Use tool-enabled generation when tools are available
             if self.tool_registry and self.tool_registry.get_all():
                 self._handle_with_tools(text, speak_chunk)
             else:
-                self.llm.generate_stream(text, speak_chunk)
+                print("Problem with Tools")
         
         print("Miyori shutting down...")
         time.sleep(2)
@@ -88,7 +89,7 @@ class MiyoriCore:
         tools = self.tool_registry.get_all()
         
         # Generate response with tool support
-        self.llm.generate_stream_with_tools(
+        self.llm.llm_chat(
             prompt=user_input,
             tools=tools,
             on_chunk=on_chunk,

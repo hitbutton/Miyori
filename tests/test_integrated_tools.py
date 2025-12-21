@@ -38,7 +38,7 @@ def run_test_case(backend, registry, prompt):
             return f"TOOL LOGS:\n{logs}\n\nTOOL RESULT:\n{result}"
         return result
 
-    backend.generate_stream_with_tools(
+    backend.llm_chat(
         prompt=prompt,
         tools=registry.get_all(),
         on_chunk=on_chunk,

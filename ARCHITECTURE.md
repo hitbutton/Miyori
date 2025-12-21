@@ -77,7 +77,7 @@ Miyori uses a human-like memory system designed for behavioral consistency rathe
 ## Key Design Decisions
 
 ### Streaming-First Architecture
-To minimize latency, `ILLMBackend.generate_stream` uses a callback to feed text chunks immediately to the TTS engine.
+To minimize latency, `ILLMBackend.llm_chat` uses a callback to feed text chunks immediately to the TTS engine.
 
 ### Dependency Injection
 `MiyoriCore` dependencies are passed via the constructor in `src/main.py` to allow easy swapping of implementations.

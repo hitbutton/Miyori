@@ -38,7 +38,7 @@ class GoogleAIBackend(ILLMBackend):
             # Handle missing API key gracefully or let it fail later
             self.client = None
             
-        self.chat = None
+        self.chat_session = None
         
         # Memory Components
         try:
@@ -110,59 +110,9 @@ class GoogleAIBackend(ILLMBackend):
     def reset_context(self) -> None:
         """Resets the conversation history."""
         print("Resetting conversation context...")
-        self.chat = None
+        self.chat_session = None
 
-    def generate_stream(self, prompt: str, on_chunk: Callable[[str], None]) -> None:
-        if not self.client:
-            print("Error: API Key not configured.")
-            return
-
-        print("Thinking...")
-        
-        # Initialize chat if not already active
-        if self.chat is None:
-            # Fetch Context
-            context = ""
-            if self.memory_enabled:
-                try:
-                    context = self.context_builder.build_context(prompt)
-                except Exception as e:
-                    print(f"Memory retrieval failed: {e}")
-
-            try:
-                config = None
-                effective_system_instruction = self.system_instruction or ""
-                if context:
-                    effective_system_instruction += f"\n\n[PAST CONTEXT]\n{context}\n"
-                
-                config = types.GenerateContentConfig(
-                    system_instruction=effective_system_instruction if effective_system_instruction else None
-                )
-                self.chat = self.client.chats.create(model=self.model_name, config=config)
-            except Exception as e:
-                print(f"Error creating chat session: {e}")
-                return
-
-        full_response = []
-
-        try:
-            # Use chat.send_message with streaming
-            response = self.chat.send_message_stream(prompt)
-            
-            for chunk in response:
-                if chunk.text:
-                    full_response.append(chunk.text)
-                    on_chunk(chunk.text)
-            
-            # Store turn asynchronously
-            if self.memory_enabled:
-                self._run_async(self._store_turn(prompt, "".join(full_response)))
-                    
-        except Exception as e:
-            print(f"Error during streaming generation: {e}")
-            self.chat = None # Invalidate chat on error?
-
-    def generate_stream_with_tools(
+    def llm_chat(
         self,
         prompt: str,
         tools: List[Tool],
@@ -177,7 +127,7 @@ class GoogleAIBackend(ILLMBackend):
         google_tools = self._convert_tools_to_gemini_format(tools)
         
         # Initialize chat if not already active
-        if self.chat is None:
+        if self.chat_session is None:
             # Fetch Context
             context = ""
             if self.memory_enabled:
@@ -195,7 +145,7 @@ class GoogleAIBackend(ILLMBackend):
                     system_instruction=effective_system_instruction if effective_system_instruction else None,
                     tools=google_tools if google_tools else None
                 )
-                self.chat = self.client.chats.create(model=self.model_name, config=config)
+                self.chat_session = self.client.chats.create(model=self.model_name, config=config)
             except Exception as e:
                 print(f"Error creating chat session: {e}")
                 return
@@ -212,7 +162,7 @@ class GoogleAIBackend(ILLMBackend):
 
         try:
             # First turn: Send user prompt
-            response = self.chat.send_message(prompt)
+            response = self.chat_session.send_message(prompt)
             
             while turn_count < max_turns:
                 turn_count += 1
@@ -243,7 +193,7 @@ class GoogleAIBackend(ILLMBackend):
                 if has_tool_call:
                     # Send all tool results back to the model in one go
                     # This triggers the next turn
-                    response = self.chat.send_message(tool_response_parts)
+                    response = self.chat_session.send_message(tool_response_parts)
                 else:
                     # No more tool calls in this response, we are finished
                     if self.memory_enabled:
@@ -255,7 +205,7 @@ class GoogleAIBackend(ILLMBackend):
 
         except Exception as e:
             print(f"Error during tool-enabled generation: {e}")
-            self.chat = None
+            self.chat_session = None
 
     def _convert_tools_to_gemini_format(self, tools: List[Tool]) -> List[types.Tool]:
         if not tools:
