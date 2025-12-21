@@ -1,5 +1,5 @@
 from google import genai
-from pathlib import Path
+from google.genai import types
 from typing import List
 from src.utils.config import Config
 
@@ -28,7 +28,7 @@ class EmbeddingService:
             response = self.client.models.embed_content(
                 model=self.model_name,
                 contents=text,
-                task_type=task_type
+                config=types.EmbedContentConfig(task_type=task_type)
             )
             return response.embeddings[0].values
         except Exception as e:
@@ -52,7 +52,7 @@ class EmbeddingService:
                 response = self.client.models.embed_content(
                     model=self.model_name,
                     contents=batch_texts,
-                    task_type=task_type
+                    config=types.EmbedContentConfig(task_type=task_type)
                 )
                 all_embeddings.extend([emb.values for emb in response.embeddings])
 
