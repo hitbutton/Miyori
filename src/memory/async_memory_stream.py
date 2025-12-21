@@ -39,7 +39,7 @@ class MemoryCache:
 class AsyncMemoryStream:
     """
     Passive streaming memory retrieval that runs asynchronously in background.
-    Pre-fetches memories for the next conversation turn based on recent context.
+    Pre-fetches memories for the next conversation turn based on up to the last 3 turns.
     """
 
     def __init__(
@@ -61,7 +61,7 @@ class AsyncMemoryStream:
 
         # Recent conversation context (rolling window)
         self._recent_turns: List[str] = []
-        self._max_recent_turns = 2  # Keep N-2, N-1 turns
+        self._max_recent_turns = 3  # Keep up to last 3 turns (earliest to most recent)
 
     async def start(self):
         """Start the background memory streaming task."""
@@ -83,13 +83,13 @@ class AsyncMemoryStream:
                 pass
         memory_logger.log_event("async_memory_stream_stopped")
 
-    def add_turn_context(self, user_message: str, assistant_response: str):
+    def add_turn_context(self, user_message: str, miyori_response: str):
         """
-        Add recent conversation turn to context window.
+        Add recent conversation turn to context window (rolling window of up to 3 turns).
         This triggers background pre-fetching for the next turn.
         """
-        # Combine user + assistant message as context
-        turn_text = f"User: {user_message}\nAssistant: {assistant_response}"
+        # Combine user + miyori message as context
+        turn_text = f"User: {user_message}\nMiyori: {miyori_response}"
 
         # Add to rolling window
         self._recent_turns.append(turn_text)
