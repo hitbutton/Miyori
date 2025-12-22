@@ -2,7 +2,7 @@ from google import genai
 from google.genai import types
 import json
 from pathlib import Path
-from typing import Callable, List, Dict, Any
+from typing import Callable, List, Dict, Any, Union
 import asyncio
 import threading
 
@@ -102,6 +102,26 @@ class GoogleAIBackend(ILLMBackend):
             return asyncio.run_coroutine_threadsafe(coro, self._loop)
         return None
 
+    def _send_to_log(self, logname: str, content: Union[str, List[str]]):
+        try:
+            logs_dir = Path(__file__).parent.parent.parent.parent / "logs"
+            log_path = logs_dir / f"{logname}.log"
+
+            logs_dir.mkdir(exist_ok=True)
+
+            # Handle both string and list inputs
+            if isinstance(content, list):
+                content_to_write = "\n".join(content)
+            else:
+                content_to_write = str(content)
+
+            # Write the content to the log file (overwrite previous content)
+            with open(log_path, "w", encoding="utf-8") as f:
+                f.write(content_to_write)
+
+        except Exception as e:
+            print(f"Warning: Failed to log to {logname}: {e}")
+
     async def _store_turn(self, user_msg: str, miyori_msg: str):
         """Summarize and store the conversation turn."""
         try:
@@ -177,6 +197,7 @@ class GoogleAIBackend(ILLMBackend):
                 effective_system_instruction = self.system_instruction or ""
                 if context:
                     effective_system_instruction += f"\n\n[PAST CONTEXT]\n{context}\n"
+                self._send_to_log("system_instruction", effective_system_instruction)
 
                 config = types.GenerateContentConfig(
                     system_instruction=effective_system_instruction if effective_system_instruction else None,
@@ -200,7 +221,8 @@ class GoogleAIBackend(ILLMBackend):
         try:
             # First turn: Send user prompt
             response = self.chat_session.send_message(prompt)
-            
+            self._send_to_log("prompt", prompt)
+
             while turn_count < max_turns:
                 turn_count += 1
                 has_tool_call = False

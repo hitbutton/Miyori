@@ -50,7 +50,7 @@ def setup_logging():
 
     # Define logs directory at project root
     project_root = Path(__file__).parent.parent.parent
-    logs_dir = project_root / "logs"
+    logs_dir = project_root / "logs" / "terminal"
     
     # Create logs directory if it doesn't exist
     if not logs_dir.exists():
