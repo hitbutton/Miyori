@@ -18,12 +18,9 @@ class MemoryCache:
     turn_count: int  # How many turns this cache has been valid for
 
     def is_valid(self, current_context_embedding: List[float], max_turns: int = 5) -> bool:
-        """Check if cache is still valid based on context similarity and turn count."""
-        # Check turn count limit
-        if self.turn_count >= max_turns:
-            return False
-
-        # Check context similarity (cosine similarity > 0.7)
+        """Check if cache is still valid based on context similarity only."""
+        # Turn count check is now done in _refresh_cache
+        
         if not self.context_embedding or not current_context_embedding:
             return False
 
@@ -67,12 +64,10 @@ class AsyncMemoryStream:
         self._last_turns_state: List[str] = []
 
     async def start(self):
-        """Start the background memory streaming task."""
+        """Start the background memory streaming."""
         if self._running:
             return
-
         self._running = True
-        self._task = asyncio.create_task(self._stream_worker())
         memory_logger.log_event("async_memory_stream_started")
 
     async def stop(self):
@@ -88,60 +83,55 @@ class AsyncMemoryStream:
 
     def add_turn_context(self, user_message: str, miyori_response: str):
         """
-        Add recent conversation turn to context window (rolling window of up to 3 turns).
-        This triggers background pre-fetching for the next turn.
+        Add recent conversation turn to context window.
+        This triggers ONE background pre-fetch for the next turn.
         """
-        # Combine user + miyori message as context
         turn_text = f"User: {user_message}\nMiyori: {miyori_response}"
-
-        # Add to rolling window
+        
         self._recent_turns.append(turn_text)
         if len(self._recent_turns) > self._max_recent_turns:
             self._recent_turns.pop(0)
-
-        # Trigger async refresh (don't await - fire and forget)
+        
+        # Trigger ONE async refresh (fire and forget)
         if self._running:
+            # Schedule in the background event loop
             asyncio.create_task(self._refresh_cache())
 
-    async def get_cached_memories(self) -> Optional[Dict[str, List[Dict[str, Any]]]]:
+    def get_cached_memories(self) -> Optional[Dict[str, List[Dict[str, Any]]]]:
         """
         Get pre-fetched memories for current turn.
         Returns None if no valid cache available.
         """
         if not self._cache:
             return None
-
-        # Check if cache is still valid for current context
-        current_context = " ".join(self._recent_turns)
-        if not current_context.strip():
-            return None
-
-        try:
-            current_embedding = self.embedding_service.embed(current_context)
-            if self._cache.is_valid(current_embedding, self.max_cache_turns):
-                self._cache.turn_count += 1
-
-                memory_logger.log_event("cache_hit", {
-                    "turn_count": self._cache.turn_count,
-                    "episodic_count": len(self._cache.episodic_memories),
-                    "semantic_count": len(self._cache.semantic_facts)
-                })
-
-                return {
-                    'episodic': self._cache.episodic_memories,
-                    'semantic': self._cache.semantic_facts
+        memory_logger.log_event("cache not none")
+        return {
+                'episodic': self._cache.episodic_memories,
+                'semantic': self._cache.semantic_facts
                 }
-            else:
-                memory_logger.log_event("cache_invalidated", {
-                    "reason": "context_similarity_or_turn_limit"
-                })
-        except Exception as e:
-            memory_logger.log_event("cache_validation_error", {"error": str(e)})
-
-        return None
 
     async def _refresh_cache(self):
         """Refresh the memory cache based on current context."""
+            # Check if current cache is still valid BEFORE refreshing
+        if self._cache is not None:
+            # Check turn limit
+            if self._cache.turn_count >= self.max_cache_turns:
+                memory_logger.log_event("cache_invalidated", {"reason": "turn_limit"})
+            else:
+                # Check context similarity
+                context_text = " ".join(self._recent_turns)
+                new_embedding = self.embedding_service.embed(context_text)
+                
+                if self._cache.is_valid(new_embedding, self.max_cache_turns):
+                    # Cache still valid, don't refresh
+                    memory_logger.log_event("cache_revalidated", {
+                        "turn_count": self._cache.turn_count
+                    })
+                    return
+                else:
+                    memory_logger.log_event("cache_invalidated", {
+                        "reason": "context_drift"
+                    })
         try:
             context_text = " ".join(self._recent_turns)
             if not context_text.strip():
@@ -175,21 +165,3 @@ class AsyncMemoryStream:
 
         except Exception as e:
             memory_logger.log_event("cache_refresh_error", {"error": str(e)})
-
-    async def _stream_worker(self):
-        """Background worker that periodically refreshes cache."""
-        while self._running:
-            try:
-                # Only refresh if we have context to work with and turns have changed
-                if self._recent_turns and self._recent_turns != self._last_turns_state:
-                    await self._refresh_cache()
-                    self._last_turns_state = self._recent_turns.copy()
-
-                # Sleep for a bit before next check
-                await asyncio.sleep(1.0)  # Check for changes every second
-
-            except asyncio.CancelledError:
-                break
-            except Exception as e:
-                memory_logger.log_event("stream_worker_error", {"error": str(e)})
-                await asyncio.sleep(5.0)  # Back off on errors

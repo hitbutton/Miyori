@@ -107,23 +107,15 @@ class ContextBuilder:
                         "privileged": True
                     })
 
-        # 2. Check for cached passive memories
         cached_memories = None
         if self.async_memory_stream:
             try:
-                # This is synchronous but should be fast (just checking cache)
-                import asyncio
-                loop = asyncio.new_event_loop()
-                cached_memories = loop.run_until_complete(
-                    self.async_memory_stream.get_cached_memories()
-                )
-                loop.close()
+                # This is now synchronous - just returns cached data
+                cached_memories = self.async_memory_stream.get_cached_memories()
             except Exception as e:
                 memory_logger.log_event("async_memory_access_error", {"error": str(e)})
 
-        # 3. Passive Mode Memories (if cache available)
         if cached_memories:
-            # Use pre-fetched diverse memories
             episodic_memories = cached_memories.get('episodic', [])
             semantic_facts = cached_memories.get('semantic', [])
 
@@ -135,11 +127,24 @@ class ContextBuilder:
             # Fallback to synchronous search (backward compatibility)
             memory_logger.log_event("cache_miss_fallback", {})
 
-            # Recent high importance (last 7 days) - fallback method
-            all_episodes = self.store.search_episodes([0.0]*768, limit=100, status='active')
+            # Use recent high importance episodes instead of zero vector
+            from datetime import datetime, timedelta
             seven_days_ago = (datetime.now() - timedelta(days=7)).isoformat()
-            episodic_memories = [e for e in all_episodes if e['timestamp'] >= seven_days_ago and e['importance'] >= 0.7]
-            semantic_facts = self.store.get_semantic_facts(limit=10)
+            
+            # Get recent episodes directly without vector search
+            all_episodes = self.store.get_all_episodes(status='active')
+            episodic_memories = [
+                e for e in all_episodes 
+                if e.get('timestamp', '') >= seven_days_ago 
+                and e.get('importance', 0) >= 0.7
+            ][:5]  # Limit to 5
+            
+            # Get high-confidence facts
+            all_facts = self.store.get_all_semantic_facts(status='active')
+            semantic_facts = [
+                f for f in all_facts 
+                if f.get('confidence', 0) >= 0.5
+            ][:5]  # Limit to 5
 
         # 4. Regular Memory Sections (remaining budget)
         remaining_budget = self.token_budget - tokens_used

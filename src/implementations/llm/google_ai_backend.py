@@ -63,6 +63,11 @@ class GoogleAIBackend(ILLMBackend):
                 self.memory_retriever,
                 self.embedding_service
             )
+            if self.memory_enabled:
+                asyncio.run_coroutine_threadsafe(
+                    self.async_memory_stream.start(),
+                    self._loop
+                )
 
             self.context_builder = ContextBuilder(
                 self.store,
