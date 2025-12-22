@@ -182,40 +182,32 @@ class MemoryRetriever:
     def search_memories(
         self,
         query_embedding: List[float],
-        search_type: str = 'both',
-        limit_per_type: int = 5,
+        search_type: str = 'episodic',
+        limit: int = 5,
         filters: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, List[Dict[str, Any]]]:
+    ) -> List[Dict[str, Any]]:
         """
-        Search both memory types with diversity sampling.
+        Search single memory type with diversity sampling.
 
         Args:
             query_embedding: Query embedding vector
-            search_type: 'episodic', 'semantic', or 'both'
-            limit_per_type: Results per memory type
+            search_type: 'episodic' or 'semantic'
+            limit: Maximum results to return
             filters: Additional filters
 
         Returns:
-            Dict with 'episodic' and/or 'semantic' keys containing results
+            List of matching memories
         """
-        results = {}
+        if search_type not in ['episodic', 'semantic']:
+            raise ValueError(f"search_type must be 'episodic' or 'semantic', got '{search_type}'")
 
-        if search_type in ['episodic', 'both']:
-            episodic_raw = self.vector_search(
-                query_embedding,
-                'episodic_memory',
-                limit=limit_per_type * 3,  # Over-fetch for diversity
-                filters=filters
-            )
-            results['episodic'] = self.diversity_sample(episodic_raw, limit_per_type)
+        table = 'episodic_memory' if search_type == 'episodic' else 'semantic_memory'
 
-        if search_type in ['semantic', 'both']:
-            semantic_raw = self.vector_search(
-                query_embedding,
-                'semantic_memory',
-                limit=limit_per_type * 3,  # Over-fetch for diversity
-                filters=filters
-            )
-            results['semantic'] = self.diversity_sample(semantic_raw, limit_per_type)
+        raw_results = self.vector_search(
+            query_embedding,
+            table,
+            limit=limit * 3,  # Over-fetch for diversity
+            filters=filters
+        )
 
-        return results
+        return self.diversity_sample(raw_results, limit)

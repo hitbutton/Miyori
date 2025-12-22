@@ -39,12 +39,22 @@ class MemorySearchTool:
             query_embedding = self.embedding_service.embed(query)
 
             # Search memories
-            results = self.retriever.search_memories(
-                query_embedding=query_embedding,
-                search_type=search_type,
-                limit_per_type=limit,
-                filters={'status': 'active', 'confidence__gt': 0.5}
-            )
+            results = {}
+            if search_type in ['episodic', 'both']:
+                results['episodic'] = self.retriever.search_memories(
+                    query_embedding=query_embedding,
+                    search_type='episodic',
+                    limit=limit,
+                    filters={'status': 'active', 'confidence__gt': 0.5}
+                )
+
+            if search_type in ['semantic', 'both']:
+                results['semantic'] = self.retriever.search_memories(
+                    query_embedding=query_embedding,
+                    search_type='semantic',
+                    limit=limit,
+                    filters={}
+                )
 
             # Format results
             formatted_results = [f"Memory search results for '{query}':\n"]

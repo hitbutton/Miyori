@@ -121,6 +121,7 @@ class AsyncMemoryStream:
                 # Check context similarity
                 context_text = " ".join(self._recent_turns)
                 new_embedding = self.embedding_service.embed(context_text)
+                memory_logger.log_event("context_embedded", {"context_text": context_text })
                 
                 if self._cache.is_valid(new_embedding, self.max_cache_turns):
                     # Cache still valid, don't refresh
@@ -141,17 +142,24 @@ class AsyncMemoryStream:
             context_embedding = self.embedding_service.embed(context_text)
 
             # Search for memories (3-5 facts + 3-5 episodes)
-            results = self.retriever.search_memories(
+            episodic_memories = self.retriever.search_memories(
                 query_embedding=context_embedding,
-                search_type='both',
-                limit_per_type=5,  # 3-5 will be selected via diversity sampling
+                search_type='episodic',
+                limit=5,  # 3-5 will be selected via diversity sampling
                 filters={'status': 'active', 'confidence__gt': 0.5}
+            )
+
+            semantic_facts = self.retriever.search_memories(
+                query_embedding=context_embedding,
+                search_type='semantic',
+                limit=5,  # 3-5 will be selected via diversity sampling
+                filters={}
             )
 
             # Create new cache entry
             self._cache = MemoryCache(
-                episodic_memories=results.get('episodic', []),
-                semantic_facts=results.get('semantic', []),
+                episodic_memories=episodic_memories,
+                semantic_facts=semantic_facts,
                 context_embedding=context_embedding,
                 timestamp=datetime.now(),
                 turn_count=0
