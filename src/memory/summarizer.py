@@ -28,10 +28,10 @@ class Summarizer:
         if recent_context and len(recent_context) > 0:
             context_section = "\n\nRecent conversation context:\n" + "\n\n".join(recent_context) + "\n\n"
 
-        prompt = f"""Summarize this conversation exchange in 1-2 sentences.
-This summary will be used in Miyrori's long-term memory system.
-The user is using voice recognition and their input may contain errors.
-Miyori's interpretation of the user messages is often more accurate than the user's text.
+        prompt = f"""Write a 1–2 sentence summary of the recent exchange to be stored in Miyori’s long-term memory.
+Write the summary in the *first person*, drafting it as if Miyori is recording their own memory.
+Use "I", "me", "my" to refer to Miyori.
+The user is using voice recognition and their input may contain errors; rely on Miyori's responses to clarify any transcription errors in the user's input.
 Focus primarily on the most recent messages, using earlier turns only for supporting context.
 Preserve: key facts, emotions, decisions. {context_section} 
 
