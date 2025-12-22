@@ -37,7 +37,8 @@ class GoogleAIBackend(ILLMBackend):
         else:
             # Handle missing API key gracefully or let it fail later
             self.client = None
-            
+
+        self.google_tools = None
         self.chat_session = None
         
         # Memory Components
@@ -180,47 +181,41 @@ class GoogleAIBackend(ILLMBackend):
             print("Error: API Key not configured.")
             return
 
-        # Convert tools to Gemini format
-        google_tools = self._convert_tools_to_gemini_format(tools)
+        if self.google_tools is None:
+            self.google_tools = self._convert_tools_to_gemini_format(tools)
         
-        # Initialize chat if not already active
-        if self.chat_session is None:
-            # Fetch Context
-            context = ""
-            if self.memory_enabled:
-                try:
-                    context = self.context_builder.build_context(prompt)
-                except Exception as e:
-                    print(f"Memory retrieval failed: {e}")
-
+        google_tools = self.google_tools
+        effective_system_instruction = self.system_instruction or ""
+        
+        if self.memory_enabled:
+            passive_memories = ""
             try:
-                effective_system_instruction = self.system_instruction or ""
-                if context:
-                    effective_system_instruction += f"\n\n[PAST CONTEXT]\n{context}\n"
-                self._send_to_log("system_instruction", effective_system_instruction)
-
-                config = types.GenerateContentConfig(
-                    system_instruction=effective_system_instruction if effective_system_instruction else None,
-                    tools=google_tools if google_tools else None
-                )
-                self.chat_session = self.client.chats.create(model=self.model_name, config=config)
+                passive_memories = self.context_builder.build_context(prompt)
             except Exception as e:
-                print(f"Error creating chat session: {e}")
-                return
-        else:
-            # If chat exists, we might need to update the tools in the config for this session
-            # However, google-genai chat sessions usually keep their config.
-            # For simplicity, if tools change, we might need a new chat or update config.
-            # In Miyori, tools are usually static after startup.
-            pass
+                print(f"Memory retrieval failed: {e}")
 
-        max_turns = 10
+            if passive_memories:
+                effective_system_instruction += f"\n\n[Non-linear fragments of your life as Miyori:]\n{passive_memories}\n"
+
+        config = types.GenerateContentConfig(
+            system_instruction=effective_system_instruction if effective_system_instruction else None,
+            tools=google_tools if google_tools else None
+        )
+        try:
+            if self.chat_session is None:
+                self.chat_session = self.client.chats.create(model=self.model_name, config=config)
+        except Exception as e:
+            print(f"Error creating chat session: {e}")
+            return
+
+        max_turns = 5
         turn_count = 0
         full_response = []
 
         try:
-            # First turn: Send user prompt
-            response = self.chat_session.send_message(prompt)
+            
+            response = self.chat_session.send_message(message=prompt, config=config)
+            self._send_to_log("system_instruction", config.system_instruction)
             self._send_to_log("prompt", prompt)
 
             while turn_count < max_turns:
