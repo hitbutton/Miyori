@@ -95,7 +95,7 @@ class AsyncMemoryStream:
         # Trigger ONE async refresh (fire and forget)
         if self._running:
             # Schedule in the background event loop
-            asyncio.create_task(self._refresh_cache())
+            asyncio.create_task(self.refresh_cache())
 
     def get_cached_memories(self) -> Optional[Dict[str, List[Dict[str, Any]]]]:
         """
@@ -110,7 +110,7 @@ class AsyncMemoryStream:
                 'semantic': self._cache.semantic_facts
                 }
 
-    async def _refresh_cache(self):
+    async def refresh_cache(self):
         """Refresh the memory cache based on current context."""
             # Check if current cache is still valid BEFORE refreshing
         if self._cache is not None:

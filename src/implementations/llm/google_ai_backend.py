@@ -83,7 +83,10 @@ class GoogleAIBackend(ILLMBackend):
                 self.store, self.episodic_manager, 
                 self.semantic_extractor
             )
-
+            # Async Background Loop for memory tasks
+            self._loop = asyncio.new_event_loop()
+            self._loop_thread = threading.Thread(target=self._loop.run_forever, daemon=True)
+            self._loop_thread.start()
             # Start async memory streaming
             if self.memory_enabled:
                 self._run_async(self.async_memory_stream.start())
@@ -122,12 +125,9 @@ class GoogleAIBackend(ILLMBackend):
         """Summarize and store the conversation turn."""
         try:
             # Phase 2: Memory Gating
+            should_remember = True
             if self.feature_flags.get("enable_gating", False):
-                if not await self.gate.should_remember(user_msg, miyori_msg):
-                    print("Memory: Turn skipped by Gate.")
-                    return
-
-            print(f"Memory: Summarizing turn...")
+                should_remember = await self.gate.should_remember(user_msg, miyori_msg)
 
             # Get recent context from async memory stream (up to 3 previous turns)
             recent_context = None
@@ -136,21 +136,23 @@ class GoogleAIBackend(ILLMBackend):
                 recent_turns = self.async_memory_stream._recent_turns.copy()
                 if recent_turns:
                     recent_context = recent_turns
-
-            summary = await self.summarizer.create_summary(user_msg, miyori_msg, recent_context)
-            full_text = {"user": user_msg, "miyori": miyori_msg}
-            
-            print(f"Memory: Storing episode...")
-            await self.episodic_manager.add_episode(summary, full_text)
-            print(f"Memory: Episode stored successfully.")
+            if should_remember:
+                summary = await self.summarizer.create_summary(user_msg, miyori_msg, recent_context)
+                full_text = {"user": user_msg, "miyori": miyori_msg}
+                
+                print(f"Memory: Storing episode...")
+                await self.episodic_manager.add_episode(summary, full_text)
+                print(f"Memory: Episode stored successfully.")
 
             # Add to async memory stream for next turn prefetching
             if hasattr(self, 'async_memory_stream'):
                 self.async_memory_stream.add_turn_context(user_msg, miyori_msg)
+                await self.async_memory_stream.refresh_cache()
             
         except Exception as e:
             import sys
             sys.stderr.write(f"Memory Error: Failure in _store_turn: {e}\n")
+        
 
     def reset_context(self) -> None:
         """Resets the conversation history."""
