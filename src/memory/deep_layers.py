@@ -19,10 +19,11 @@ class SemanticExtractor:
             return
         
         # Build prompt with cluster structure
-        prompt = "Extract stable semantic facts about the user from these semantically-grouped conversations.\n\n"
+        prompt = "Extract facts that Miyori has observed from these memories she has.\n\n"
+        prompt += "Your extracted fact will be used in her deeper memories, and it should be phrased in first person.\n"
+        prompt += "Do not say 'The user asked Miyori to tell a story', but say 'The user asked me to tell a story'.\n\n"
         prompt += "Each cluster contains related conversations. Look for:\n"
         prompt += "- Facts that appear multiple times within a cluster\n"
-        prompt += "- Facts that appear across different clusters\n"
         prompt += "- Recurring preferences, patterns, and decisions\n\n"
         
         for cluster_idx, cluster in enumerate(clusters):
@@ -31,7 +32,7 @@ class SemanticExtractor:
                 prompt += f"- {episode['summary']}\n"
             prompt += f"</CLUSTER_{cluster_idx}>\n\n"
         
-        prompt += "Extract only objective facts as simple sentences. Format: one fact per line.\n\nFacts:"
+        prompt += "Extract facts as simple sentences. Format: one fact per line.\n\nFacts:"
         
         try:
             import asyncio
