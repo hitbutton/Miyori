@@ -54,15 +54,9 @@ def run_consolidation(db_path: Optional[str] = None, verbose: bool = True) -> bo
         if verbose:
             print("OK: Gemini client initialized")
 
-        # Setup memory store
-        if db_path is None:
-            db_path = project_root / "memory.db"
-        else:
-            db_path = Path(db_path)
-
-        store = SQLiteMemoryStore(str(db_path))
+        store = SQLiteMemoryStore()
         if verbose:
-            print(f"OK: Memory store initialized (DB: {db_path})")
+            print(f"OK: Memory store initialized")
 
         # Setup embedding service
         embedding_service = EmbeddingService()
