@@ -1,5 +1,22 @@
-from typing import List, Dict, Any, Optional
-from datetime import datetime, timedelta
+from typing import Any, Optional
+from datetime import datetime
+
+def get_current_time_formatted() -> str:
+    """Get current time formatted as '2025-12-24 19:47 (Wednesday evening)'."""
+    now = datetime.now()
+    date_str = now.strftime("%Y-%m-%d")
+    time_str = now.strftime("%H:%M:%S")
+    day_name = now.strftime("%A")
+    hour = now.hour
+    if 0 <= hour < 12:
+        time_of_day = "morning"
+    elif 12 <= hour < 17:
+        time_of_day = "afternoon"
+    elif 17 <= hour < 22:
+        time_of_day = "evening"
+    else:
+        time_of_day = "night"
+    return f"[Current Time:] {date_str} {time_str} ({day_name} {time_of_day})\n\n"
 
 def count_tokens_approx(text: str) -> int:
     """Approximate token count (chars / 4)."""
@@ -25,7 +42,7 @@ def format_section(label: str, content: Any) -> str:
             # Simple timestamp formatting if possible
             try:
                 dt = datetime.fromisoformat(ts)
-                ts_str = dt.strftime("%Y-%m-%d")
+                ts_str = dt.strftime("%Y-%m-%d %H:%M:%S")
                 items.append(f"[{ts_str}] {item.get('summary')}")
             except:
                 items.append(f"{item.get('summary')}")
@@ -205,6 +222,8 @@ class ContextBuilder:
             "has_tool_results": tool_results is not None
         })
 
-        built_context = "".join(context_parts).strip()
+        current_time_str = get_current_time_formatted()
+        fragments_header = "[Non-linear fragments of your life as Miyori:]\n\n"
+        built_context = current_time_str + fragments_header + "".join(context_parts).strip()
         memory_logger.log_event("context_final", {"context": built_context})
         return built_context

@@ -191,7 +191,7 @@ class GoogleAIBackend(ILLMBackend):
                 print(f"Memory retrieval failed: {e}")
 
             if passive_memories:
-                effective_system_instruction += f"\n\n[Non-linear fragments of your life as Miyori:]\n{passive_memories}\n"
+                effective_system_instruction += f"{passive_memories}\n\n"
 
         config = types.GenerateContentConfig(
             system_instruction=effective_system_instruction if effective_system_instruction else None,
