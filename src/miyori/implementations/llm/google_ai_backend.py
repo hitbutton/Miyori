@@ -171,7 +171,8 @@ class GoogleAIBackend(ILLMBackend):
         prompt: str,
         tools: List[Tool],
         on_chunk: Callable[[str], None],
-        on_tool_call: Callable[[str, Dict[str, Any]], str]
+        on_tool_call: Callable[[str, Dict[str, Any]], str],
+        interrupt_check: Callable[[], bool] = None
     ) -> None:
         if not self.client:
             print("Error: API Key not configured.")
@@ -215,6 +216,11 @@ class GoogleAIBackend(ILLMBackend):
             self._send_to_log("prompt", prompt)
 
             while turn_count < max_turns:
+                # Check for interrupt before starting a turn
+                if interrupt_check and interrupt_check():
+                    print("LLM: Interrupt requested, stopping generation.")
+                    break
+
                 turn_count += 1
                 has_tool_call = False
                 tool_response_parts = []

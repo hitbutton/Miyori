@@ -36,6 +36,17 @@ class Tee:
         if stream in self.streams:
             self.streams.remove(stream)
 
+    def isatty(self):
+        """Check if any of the streams is a TTY."""
+        return any(hasattr(s, 'isatty') and s.isatty() for s in self.streams)
+
+    def fileno(self):
+        """Return the fileno of the first stream that has one."""
+        for s in self.streams:
+            if hasattr(s, 'fileno'):
+                return s.fileno()
+        raise OSError("None of the streams have a fileno")
+
 # Global trackers for the active Tee instances
 _stdout_tee = None
 _stderr_tee = None

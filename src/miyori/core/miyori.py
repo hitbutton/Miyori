@@ -1,67 +1,63 @@
 import time
+from typing import Dict, Any, Callable, List, Optional
 from miyori.interfaces.speech_input import ISpeechInput
 from miyori.interfaces.speech_output import ISpeechOutput
 from miyori.interfaces.llm_backend import ILLMBackend
 from miyori.core.tool_registry import ToolRegistry
-from typing import Dict, Any, Callable
 from miyori.utils.config import Config
-
+from miyori.core.state_manager import StateManager
 
 class MiyoriCore:
     def __init__(self, 
-                 speech_input: ISpeechInput,
                  speech_output: ISpeechOutput,
                  llm: ILLMBackend,
-                 tool_registry: ToolRegistry = None): # NEW
-        self.speech_input = speech_input
+                 state_manager: StateManager,
+                 tool_registry: ToolRegistry = None):
         self.speech_output = speech_output
         self.llm = llm
-        self.tool_registry = tool_registry # NEW
+        self.state_manager = state_manager
+        self.tool_registry = tool_registry
         
+        self.last_interaction_time = 0
         # Load config for active listen timeout
         self.active_listen_timeout = Config.data.get("speech_input", {}).get("active_listen_timeout", 30)
 
-    def run(self) -> None:
-        print("Miyori starting up...")
-
-        last_interaction_time = 0
+    def process_input(self, text: str, source: str, on_chunk: Callable[[str], None]) -> None:
+        """
+        Process user input and generate response.
         
-        while True:
-            # Determine if we need wake word
-            require_wake_word = True
-            if last_interaction_time > 0 and (time.time() - last_interaction_time < self.active_listen_timeout):
-                require_wake_word = False
-                
-            text = self.speech_input.listen(require_wake_word=require_wake_word)
-            if text is None:
-                continue
-
-            # Update last interaction time on successful speech detection
-            last_interaction_time = time.time()
-            
-            # Check for "go to sleep" command
-            if "go to sleep" in text.lower():
-                self.speech_output.speak("ok goodnight")
-                last_interaction_time = 0 # Force wake word requirement next time
-                continue
-
-            # Check for exit commands (case-insensitive)
-            if set(['exit', 'goodbye']).intersection(text.lower().split()):
-                self.speech_output.speak("Goodbye!")
-                break
-            
-            # Define callback for streaming chunks - speak immediately
-            def speak_chunk(chunk: str) -> None:
-                self.speech_output.speak(chunk)
-            
-            # Use tool-enabled generation when tools are available
-            if self.tool_registry and self.tool_registry.get_all():
-                self._handle_with_tools(text, speak_chunk)
-            else:
-                print("Problem with Tools")
+        Args:
+            text: User input text
+            source: "voice" or "text"
+            on_chunk: Callback for streaming response chunks
+        """
+        # Update interaction time for both voice and text
+        self.last_interaction_time = time.time()
         
-        print("Miyori shutting down...")
-        time.sleep(2)
+        # Handle special commands
+        if "go to sleep" in text.lower():
+            self.speech_output.speak("ok goodnight")
+            on_chunk("ok goodnight")
+            self.last_interaction_time = 0
+            return
+        
+        if set(['exit', 'goodbye']).intersection(text.lower().split()):
+            self.speech_output.speak("Goodbye!")
+            on_chunk("Goodbye!")
+            return
+        
+        # Use tool-enabled generation when tools are available
+        if self.tool_registry and self.tool_registry.get_all():
+             self._handle_with_tools(text, on_chunk)
+        else:
+            # Fallback if no tools (though usually should have tools)
+            self.llm.llm_chat(
+                prompt=text,
+                tools=[],
+                on_chunk=on_chunk,
+                on_tool_call=lambda n, p: "",
+                interrupt_check=self.state_manager.should_interrupt
+            )
 
     def _handle_with_tools(self, user_input: str, on_chunk: Callable[[str], None]) -> None:
         """Handle user input with tool support."""
@@ -91,5 +87,12 @@ class MiyoriCore:
             prompt=user_input,
             tools=tools,
             on_chunk=on_chunk,
-            on_tool_call=on_tool_call
+            on_tool_call=on_tool_call,
+            interrupt_check=self.state_manager.should_interrupt
         )
+
+    def needs_wake_word(self) -> bool:
+        """Determine if wake word is required for voice input."""
+        if self.last_interaction_time == 0:
+            return True
+        return (time.time() - self.last_interaction_time) >= self.active_listen_timeout

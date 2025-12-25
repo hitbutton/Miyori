@@ -24,7 +24,8 @@ class ILLMBackend(ABC):
         prompt: str,
         tools: List[Tool],
         on_chunk: Callable[[str], None],
-        on_tool_call: Callable[[str, Dict[str, Any]], str]
+        on_tool_call: Callable[[str, Dict[str, Any]], str],
+        interrupt_check: Callable[[], bool] = None
     ) -> None:
         """Generate an AI response with streaming chunks and tool support.
 

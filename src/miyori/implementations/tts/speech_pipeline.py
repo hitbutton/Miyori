@@ -72,6 +72,15 @@ class SpeechPipeline:
             return
         self._queue.put(text)
 
+    def clear(self):
+        """Clears all pending text in the queue."""
+        while not self._queue.empty():
+            try:
+                self._queue.get_nowait()
+                self._queue.task_done()
+            except queue.Empty:
+                break
+
     def stop(self):
         """Stops the worker thread gracefully by sending a poison pill."""
         self._queue.put(None)

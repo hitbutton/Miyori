@@ -164,7 +164,31 @@ class KokoroTTSOutput(ISpeechOutput):
             
             self._buffer = parts[-1]
 
-    def stop(self):
+    def stop(self) -> None:
+        """Interrupt current speech and clear queues."""
+        logging.info("Stopping speech output...")
+        
+        # Clear text buffer
+        with self._buffer_lock:
+            self._buffer = ""
+            if self._flush_timer:
+                self._flush_timer.cancel()
+        
+        # Clear speech pipeline queue
+        self._speech_pipeline.clear()
+        
+        # Clear audio queue
+        while not self.audio_queue.empty():
+            try:
+                self.audio_queue.get_nowait()
+            except queue.Empty:
+                break
+        
+        # Reset current chunk in audio callback
+        self._current_chunk = None
+        self._chunk_offset = 0
+
+    def close(self):
         """Clean up resources."""
         if hasattr(self, 'stream'):
             self.stream.stop()

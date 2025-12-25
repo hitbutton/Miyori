@@ -19,3 +19,8 @@ class ISpeechOutput(ABC):
             text: The text to convert to speech
         """
         pass
+
+    @abstractmethod
+    def stop(self) -> None:
+        """Stop current speech output immediately."""
+        pass
