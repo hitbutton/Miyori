@@ -224,6 +224,6 @@ class ContextBuilder:
 
         current_time_str = get_current_time_formatted()
         fragments_header = "[Non-linear fragments of your life as Miyori:]\n\n"
-        built_context = current_time_str + fragments_header + "".join(context_parts).strip()
+        built_context = "\n\n" + current_time_str + fragments_header + "".join(context_parts).strip()
         memory_logger.log_event("context_final", {"context": built_context})
         return built_context
