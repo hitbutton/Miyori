@@ -64,8 +64,8 @@ def main():
     server_module.start_voice_thread(speech_input)
     
     # Start FastAPI Server
-    server_config = Config.data.get("server", {"port": 8069, "host": "127.0.0.1"})
-    port = server_config.get("port", 8069)
+    server_config = Config.data.get("server", {})
+    port = server_config.get("port", 8000)
     host = server_config.get("host", "127.0.0.1")
     
     print(f"🚀 Miyori Server starting on http://{host}:{port}")
