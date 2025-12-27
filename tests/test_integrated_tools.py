@@ -48,7 +48,7 @@ def run_test_case(backend, registry, prompt):
     return "".join(miyori_response)
 
 def test_programmatic_verification():
-    print("🚀 Starting Programmatic Truth Verification Test...")
+    print("Starting Programmatic Truth Verification Test...")
     
     # Initialize logging
     logger.setup_logging()
@@ -73,10 +73,10 @@ def test_programmatic_verification():
     if verification_file.exists():
         verification_file.unlink()
         
-    print(f"🔑 [SYSTEM] Generating secret key...")
+    print(" [SYSTEM] Generating secret key...")
     with open(truth_file, "w", encoding="utf-8") as f:
         f.write(secret_key)
-    print(f"✅ [SYSTEM] Secret injected into {truth_file.name}")
+    print(f" [SYSTEM] Secret injected into {truth_file.name}")
 
     # --- PHASE 1: WEB SEARCH & LOG MEMORY ---
     print("\n--- Phase 1: Web Search & Log Memory ---")
@@ -101,7 +101,7 @@ def test_programmatic_verification():
     time.sleep(1) # Ensure file handles are closed
     
     if not verification_file.exists():
-        print("❌ [FAIL] verification.txt was never created.")
+        print(" [FAIL] verification.txt was never created.")
     else:
         with open(verification_file, "r", encoding="utf-8") as f:
             written_content = f.read().strip()
@@ -110,11 +110,11 @@ def test_programmatic_verification():
         print(f"Actually Written: {written_content}")
         
         if written_content == secret_key:
-            print("🏆 [SUCCESS] Tool-use is AUTHENTIC. Secret key matches.")
+            print(" [SUCCESS] Tool-use is AUTHENTIC. Secret key matches.")
         else:
-            print("🚫 [FAIL] Hallucination detected or incorrect data written.")
+            print(" [FAIL] Hallucination detected or incorrect data written.")
 
-    print("\n✅ Integrated test sequence complete.")
+    print("\n Integrated test sequence complete.")
 
 if __name__ == "__main__":
     test_programmatic_verification()

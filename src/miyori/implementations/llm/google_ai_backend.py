@@ -7,6 +7,9 @@ import threading
 from miyori.utils.config import Config
 from miyori.core.tools import Tool
 from miyori.interfaces.llm_backend import ILLMBackend
+from miyori.core.chat_history import ChatHistory
+from miyori.core.llm_coordinator import LLMCoordinator
+import uuid
 
 class GoogleAIBackend(ILLMBackend):
     def __init__(self):
@@ -37,7 +40,25 @@ class GoogleAIBackend(ILLMBackend):
             self.client = None
 
         self.google_tools = None
-        self.chat_session = None
+        
+        # LLM Limits and Coordination
+        self.MAX_HISTORY_TOKENS = 8000
+        self.MAX_TOOL_TURNS = 5
+        self.TRIM_CHUNK_SIZE = 1000
+
+        self.chat_history = ChatHistory(
+            max_tokens=self.MAX_HISTORY_TOKENS,
+            trim_chunk_size=self.TRIM_CHUNK_SIZE
+        )
+
+        self.coordinator = LLMCoordinator(
+            chat_history=self.chat_history,
+            translate_to_provider_callback=self._translate_to_provider_format,
+            call_provider_api_callback=self._call_provider_api,
+            parse_provider_response_callback=self._parse_provider_response,
+            format_tool_result_callback=self._format_tool_result,
+            max_tool_turns=self.MAX_TOOL_TURNS
+        )
         
         # Memory Components
         try:
@@ -156,7 +177,7 @@ class GoogleAIBackend(ILLMBackend):
     def reset_context(self) -> None:
         """Resets the conversation history."""
         print("Resetting conversation context...")
-        self.chat_session = None
+        self.chat_history.clear()
         # Clear async memory stream context
         if hasattr(self, 'async_memory_stream'):
             self.async_memory_stream._recent_turns.clear()
@@ -182,86 +203,133 @@ class GoogleAIBackend(ILLMBackend):
             self.google_tools = self._convert_tools_to_gemini_format(tools)
         
         google_tools = self.google_tools
-        effective_system_instruction = self.system_instruction or ""
         
-        if self.memory_enabled:
-            passive_memories = ""
-            try:
-                passive_memories = self.context_builder.build_context(prompt)
-            except Exception as e:
-                print(f"Memory retrieval failed: {e}")
-
-            if passive_memories:
-                effective_system_instruction += f"{passive_memories}\n\n"
-
+        # Static config for Gemini
         config = types.GenerateContentConfig(
-            system_instruction=effective_system_instruction if effective_system_instruction else None,
+            system_instruction=self.system_instruction if self.system_instruction else None,
             tools=google_tools if google_tools else None
         )
-        try:
-            if self.chat_session is None:
-                self.chat_session = self.client.chats.create(model=self.model_name, config=config)
-        except Exception as e:
-            print(f"Error creating chat session: {e}")
-            return
 
-        max_turns = 5
-        turn_count = 0
-        full_response = []
+        def store_turn_wrapper(u, m):
+            if self.memory_enabled:
+                self._run_async(self._store_turn(u, m))
 
         try:
-            
-            response = self.chat_session.send_message(message=prompt, config=config)
-            self._send_to_log("system_instruction", config.system_instruction)
+            # Delegate to coordinator
+            self.coordinator.run(
+                prompt=prompt,
+                tools=tools,
+                on_chunk=on_chunk,
+                on_tool_call=on_tool_call,
+                interrupt_check=interrupt_check,
+                context_builder=self.context_builder if self.memory_enabled else None,
+                store_turn_callback=store_turn_wrapper,
+                generate_config=config
+            )
+
+            # Log system instruction and prompt (from the first turn usually)
+            self._send_to_log("system_instruction", self.system_instruction or "NONE")
             self._send_to_log("prompt", prompt)
 
-            while turn_count < max_turns:
-                # Check for interrupt before starting a turn
-                if interrupt_check and interrupt_check():
-                    print("LLM: Interrupt requested, stopping generation.")
-                    break
-
-                turn_count += 1
-                has_tool_call = False
-                tool_response_parts = []
-                
-                # Process parts of the current response
-                if response.candidates and response.candidates[0].content.parts:
-                    for part in response.candidates[0].content.parts:
-                        if part.text:
-                            full_response.append(part.text)
-                            on_chunk(part.text)
-                        
-                        if part.function_call:
-                            has_tool_call = True
-                            tool_name = part.function_call.name
-                            args = part.function_call.args or {}
-                            
-                            # Execute tool
-                            result = on_tool_call(tool_name, args)
-                            
-                            # Prepare result part
-                            tool_response_parts.append(types.Part.from_function_response(
-                                name=tool_name,
-                                response={"result": result}
-                            ))
-                
-                if has_tool_call:
-                    # Send all tool results back to the model in one go
-                    # This triggers the next turn
-                    response = self.chat_session.send_message(tool_response_parts)
-                else:
-                    # No more tool calls in this response, we are finished
-                    if self.memory_enabled:
-                        self._run_async(self._store_turn(prompt, "".join(full_response)))
-                    break
-
-            if turn_count >= max_turns:
-                print(f"⚠️ Warning: Max tool turns ({max_turns}) reached.")
-
         except Exception as e:
-            print(f"Error during tool-enabled generation: {e}")
-            self.chat_session = None
+            print(f"Error during LLM coordination: {e}")
+            import traceback
+            traceback.print_exc()
+
+    # --- Provider Specific Callbacks ---
+
+    def _translate_to_provider_format(self, messages: List[Dict]) -> List[types.Content]:
+        """Converts internal format to Google's Content format, grouping adjacent messages with same role."""
+        provider_messages = []
+        i = 0
+        while i < len(messages):
+            msg = messages[i]
+            # Map internal role to provider role
+            current_provider_role = "model" if msg["role"] == "miyori" else "user"
+            
+            # Group consecutive messages that share the same provider role
+            group_parts = []
+            while i < len(messages):
+                m = messages[i]
+                m_provider_role = "model" if m["role"] == "miyori" else "user"
+                
+                if m_provider_role != current_provider_role:
+                    break
+                
+                # Add parts from this message
+                if m.get("content"):
+                    if m["role"] == "tool":
+                        # Tool results use function_response part
+                        group_parts.append(types.Part.from_function_response(
+                            name=m["name"],
+                            response={"result": m["content"]}
+                        ))
+                    else:
+                        # Regular text part
+                        group_parts.append(types.Part.from_text(text=m["content"]))
+                
+                if m["role"] == "miyori" and m.get("tool_calls"):
+                    for tc in m["tool_calls"]:
+                        # Include thought_signature if present (required for some Gemini models)
+                        group_parts.append(types.Part(
+                            function_call=types.FunctionCall(
+                                name=tc["name"],
+                                args=tc["arguments"]
+                            ),
+                            thought_signature=tc.get("thought_signature")
+                        ))
+                
+                i += 1
+            
+            if group_parts:
+                provider_messages.append(types.Content(
+                    role=current_provider_role, 
+                    parts=group_parts
+                ))
+        
+        return provider_messages
+
+    def _call_provider_api(self, provider_messages: List[types.Content], config: types.GenerateContentConfig) -> Any:
+        """Makes stateless API call to Google's generate_content."""
+        return self.client.models.generate_content(
+            model=self.model_name,
+            contents=provider_messages,
+            config=config
+        )
+
+    def _parse_provider_response(self, response: Any) -> Dict:
+        """Extracts text and tool calls from Google response."""
+        text_parts = []
+        tool_calls = []
+        
+        if response.candidates and response.candidates[0].content.parts:
+            for part in response.candidates[0].content.parts:
+                if hasattr(part, 'text') and part.text:
+                    text_parts.append(part.text)
+                
+                if hasattr(part, 'function_call') and part.function_call:
+                    tc_data = {
+                        "id": str(uuid.uuid4())[:8],
+                        "name": part.function_call.name,
+                        "arguments": part.function_call.args or {}
+                    }
+                    # Capture thought_signature if present on the Part
+                    if hasattr(part, 'thought_signature') and part.thought_signature:
+                        tc_data["thought_signature"] = part.thought_signature
+                    
+                    tool_calls.append(tc_data)
+        
+        return {
+            "text": "".join(text_parts),
+            "tool_calls": tool_calls
+        }
+
+    def _format_tool_result(self, tool_call_id: str, tool_name: str, result: str) -> Any:
+        """Handled within _translate_to_provider_format for Google."""
+        # Coordinator calls this but we also need it for internal history storage
+        # which is handled by LLMCoordinator. 
+        # For Google, the actual provider mapping happens in _translate_to_provider_format.
+        return result
 
     def _convert_tools_to_gemini_format(self, tools: List[Tool]) -> List[types.Tool]:
         if not tools:
