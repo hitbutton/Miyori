@@ -54,7 +54,8 @@ class MiyoriCore:
                 tools=[],
                 on_chunk=on_chunk,
                 on_tool_call=lambda n, p: "",
-                interrupt_check=self.state_manager.should_interrupt
+                interrupt_check=self.state_manager.should_interrupt,
+                source=source
             )
 
     def _handle_with_tools(self, user_input: str, on_chunk: Callable[[str], None]) -> None:
@@ -86,7 +87,8 @@ class MiyoriCore:
             tools=tools,
             on_chunk=on_chunk,
             on_tool_call=on_tool_call,
-            interrupt_check=self.state_manager.should_interrupt
+            interrupt_check=self.state_manager.should_interrupt,
+            source=source
         )
 
     def needs_wake_word(self) -> bool:

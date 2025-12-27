@@ -25,7 +25,8 @@ class ILLMBackend(ABC):
         tools: List[Tool],
         on_chunk: Callable[[str], None],
         on_tool_call: Callable[[str, Dict[str, Any]], str],
-        interrupt_check: Callable[[], bool] = None
+        interrupt_check: Callable[[], bool] = None,
+        source: str = "text"
     ) -> None:
         """Generate an AI response with streaming chunks and tool support.
 
@@ -34,5 +35,7 @@ class ILLMBackend(ABC):
             tools: List of available tools
             on_chunk: Callback for text chunks
             on_tool_call: Callback for tool execution
+            interrupt_check: Optional interrupt check function
+            source: Source of the input ("text" or "voice")
         """
         pass

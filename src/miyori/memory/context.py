@@ -16,7 +16,7 @@ def get_current_time_formatted() -> str:
         time_of_day = "evening"
     else:
         time_of_day = "night"
-    return f"[Current Time:] {date_str} {time_str} ({day_name} {time_of_day})\n\n"
+    return f"[Current Time]: {date_str} {time_str} ({day_name} {time_of_day})\n\n"
 
 def count_tokens_approx(text: str) -> int:
     """Approximate token count (chars / 4)."""
@@ -223,7 +223,7 @@ class ContextBuilder:
         })
 
         current_time_str = get_current_time_formatted()
-        fragments_header = "[Non-linear fragments of your life as Miyori:]\n\n"
+        fragments_header = "[Non-linear fragments of your life as Miyori]:\n\n"
         built_context = "\n\n" + current_time_str + fragments_header + "".join(context_parts).strip()
         memory_logger.log_event("context_final", {"context": built_context})
         return built_context

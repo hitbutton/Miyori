@@ -33,6 +33,7 @@ class LLMCoordinator:
         on_chunk: Callable[[str], None],
         on_tool_call: Callable[[str, Dict[str, Any]], str],
         interrupt_check: Optional[Callable[[], bool]] = None,
+        source: str = "text",
         context_builder: Optional[Any] = None,
         store_turn_callback: Optional[Callable[[str, str], Any]] = None,
         generate_config: Optional[Any] = None
@@ -57,8 +58,9 @@ class LLMCoordinator:
         # Log context prefix
         self._log_to_file("prefix.log", context_prefix)
         
-        # 4. Add ORIGINAL user message to history
-        self.chat_history.add_message("user", prompt)
+        # 4. Add ORIGINAL user message to history with source prefix
+        prefixed_prompt = f"({source} input)]: {prompt}"
+        self.chat_history.add_message("user", prefixed_prompt)
         
         turn_count = 0
         full_response_text = []
@@ -78,7 +80,7 @@ class LLMCoordinator:
                 if history[i]["role"] == "user":
                     # Create a copy of the message so we don't modify the one in history
                     history[i] = history[i].copy()
-                    history[i]["content"] = f"{context_prefix}\n\n[user:]{history[i]['content']}"
+                    history[i]["content"] = f"{context_prefix}\n\n[user {history[i]['content']}"
                     break
             
             # 6. Translate history to provider format

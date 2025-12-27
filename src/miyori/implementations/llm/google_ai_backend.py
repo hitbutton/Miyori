@@ -193,7 +193,8 @@ class GoogleAIBackend(ILLMBackend):
         tools: List[Tool],
         on_chunk: Callable[[str], None],
         on_tool_call: Callable[[str, Dict[str, Any]], str],
-        interrupt_check: Callable[[], bool] = None
+        interrupt_check: Callable[[], bool] = None,
+        source: str = "text"
     ) -> None:
         if not self.client:
             print("Error: API Key not configured.")
@@ -222,6 +223,7 @@ class GoogleAIBackend(ILLMBackend):
                 on_chunk=on_chunk,
                 on_tool_call=on_tool_call,
                 interrupt_check=interrupt_check,
+                source=source,
                 context_builder=self.context_builder if self.memory_enabled else None,
                 store_turn_callback=store_turn_wrapper,
                 generate_config=config
