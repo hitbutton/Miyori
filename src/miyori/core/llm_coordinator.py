@@ -1,4 +1,6 @@
 import datetime
+import json
+import os
 from typing import List, Dict, Any, Callable, Optional
 import uuid
 
@@ -38,10 +40,8 @@ class LLMCoordinator:
         """
         Main orchestration loop.
         """
-        # 1. Get current datetime string
-        now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         
-        # 2. Retrieve memory context (if enabled)
+        # Retrieve memory context (if enabled)
         memory_summary = ""
         if context_builder:
             try:
@@ -49,16 +49,16 @@ class LLMCoordinator:
             except Exception as e:
                 print(f"LLMCoordinator: Memory retrieval failed: {e}")
 
-        # 3. Build contextualized prompt
-        context_prefix = f"[CONTEXT: {now}"
+        # Build contextualized prompt
+        context_prefix = ""
         if memory_summary:
             context_prefix += f", {memory_summary}"
-        context_prefix += "]"
         
-        contextualized_prompt = f"{context_prefix}\n\n{prompt}"
+        # Log context prefix
+        self._log_to_file("prefix.log", context_prefix)
         
-        # 4. Add contextualized user message to history
-        self.chat_history.add_message("user", contextualized_prompt)
+        # 4. Add ORIGINAL user message to history
+        self.chat_history.add_message("user", prompt)
         
         turn_count = 0
         full_response_text = []
@@ -71,27 +71,39 @@ class LLMCoordinator:
                 
             turn_count += 1
             
-            # 5. Translate history to provider format
-            provider_messages = self._translate_to_provider(self.chat_history.get_history())
+            # 5. Get history and inject context prefix transiently into the LATEST user prompt
+            history = self.chat_history.get_history().copy()
+            # Find the most recent user prompt in history to prepend context to it
+            for i in range(len(history) - 1, -1, -1):
+                if history[i]["role"] == "user":
+                    # Create a copy of the message so we don't modify the one in history
+                    history[i] = history[i].copy()
+                    history[i]["content"] = f"{context_prefix}\n\n{history[i]['content']}"
+                    break
             
-            # 6. Call provider API
+            # 6. Translate history to provider format
+            provider_messages = self._translate_to_provider(history)
+            # Log history to file
+            self._log_to_file("history.log", history)
+            
+            # Call provider API
             try:
                 response = self._call_provider_api(provider_messages, generate_config)
             except Exception as e:
                 print(f"LLMCoordinator: API call failed: {e}")
                 break
                 
-            # 7. Parse response
+            # Parse response
             parsed = self._parse_provider_response(response)
             text = parsed.get("text", "")
             tool_calls = parsed.get("tool_calls", [])
             
-            # 8. Stream text chunks
+            # Stream text chunks
             if text:
                 full_response_text.append(text)
                 on_chunk(text)
             
-            # 9. Handle tool calls
+            # Handle tool calls
             if tool_calls:
                 # Store miyori's turn WITH tool calls in history
                 self.chat_history.add_message("miyori", text, tool_calls=tool_calls)
@@ -134,3 +146,22 @@ class LLMCoordinator:
         
         if turn_count >= self.max_tool_turns:
             print(f"LLMCoordinator: Max tool turns ({self.max_tool_turns}) reached.")
+
+    def _log_to_file(self, filename: str, data: Any):
+        """
+        Generic logger for LLM coordinator.
+        """
+        try:
+            log_dir = "logs"
+            if not os.path.exists(log_dir):
+                os.makedirs(log_dir)
+            
+            log_path = os.path.join(log_dir, filename)
+            
+            with open(log_path, "w", encoding="utf-8") as f:
+                if isinstance(data, (dict, list)):
+                    json.dump(data, f, indent=2, ensure_ascii=False)
+                else:
+                    f.write(str(data))
+        except Exception as e:
+            print(f"LLMCoordinator: Failed to log {filename}: {e}")
