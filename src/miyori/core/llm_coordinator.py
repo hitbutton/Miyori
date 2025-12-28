@@ -10,6 +10,8 @@ class LLMCoordinator:
     Handles tool-calling loops, memory context injection, and history management.
     """
 
+    METADATA_KEYS_TO_STRIP = ["thought_signature"]
+
     def __init__(
         self,
         chat_history,
@@ -149,6 +151,21 @@ class LLMCoordinator:
         if turn_count >= self.max_tool_turns:
             print(f"LLMCoordinator: Max tool turns ({self.max_tool_turns}) reached.")
 
+    def _strip_metadata(self, data: Any) -> Any:
+        """
+        Recursively strip metadata keys from the data.
+        """
+        if isinstance(data, dict):
+            return {
+                k: self._strip_metadata(v)
+                for k, v in data.items()
+                if k not in self.METADATA_KEYS_TO_STRIP
+            }
+        elif isinstance(data, list):
+            return [self._strip_metadata(item) for item in data]
+        else:
+            return data
+
     def _log_to_file(self, filename: str, data: Any):
         """
         Generic logger for LLM coordinator.
@@ -159,6 +176,10 @@ class LLMCoordinator:
                 os.makedirs(log_dir)
             
             log_path = os.path.join(log_dir, filename)
+            
+            # Strip metadata if it's a structural log
+            if isinstance(data, (dict, list)):
+                data = self._strip_metadata(data)
             
             with open(log_path, "w", encoding="utf-8") as f:
                 if isinstance(data, (dict, list)):
