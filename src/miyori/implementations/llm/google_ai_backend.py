@@ -42,9 +42,11 @@ class GoogleAIBackend(ILLMBackend):
         self.google_tools = None
         
         # LLM Limits and Coordination
-        self.MAX_HISTORY_TOKENS = 8000
+        # around 8:1 ratio for token limit to chunk size is sensible
+        # losing about 20% of conversation with each trim
+        self.MAX_HISTORY_TOKENS = 128000
         self.MAX_TOOL_TURNS = 5
-        self.TRIM_CHUNK_SIZE = 1000
+        self.TRIM_CHUNK_SIZE = 16000
 
         self.chat_history = ChatHistory(
             max_tokens=self.MAX_HISTORY_TOKENS,

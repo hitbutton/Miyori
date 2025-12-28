@@ -34,21 +34,22 @@ class ChatHistory:
         Simple character-based heuristic: len(content) // 4.
         Applies to all content in the messages.
         """
+        return self._calculate_tokens(self.messages)
+
+    def _calculate_tokens(self, messages: List[Dict[str, Any]]) -> int:
+        """Calculates token count for a list of messages."""
         total_tokens = 0
-        for msg in self.messages:
+        for msg in messages:
             content = msg.get("content", "")
             total_tokens += len(str(content)) // 4
             
-            # Count tokens for tool calls if present
             if "tool_calls" in msg:
                 for tool_call in msg["tool_calls"]:
                     total_tokens += len(str(tool_call)) // 4
                     
-            # Count tokens for other fields if present (name, tool_call_id)
             for key, value in msg.items():
                 if key not in ["role", "content", "tool_calls"]:
                     total_tokens += len(str(value)) // 4
-                    
         return total_tokens
 
     def clear(self) -> None:
@@ -57,7 +58,8 @@ class ChatHistory:
 
     def trim_to_limit(self, max_tokens: int, chunk_size: int) -> None:
         """
-        Greedy trimming: remove oldest messages until token count is comfortably under limit.
+        Turn-aware trimming: remove oldest turns until token count is under limit.
+        Always starts history with a 'user' message.
         """
         current_tokens = self.get_token_count()
         if current_tokens <= max_tokens:
@@ -65,15 +67,32 @@ class ChatHistory:
 
         print(f"ChatHistory: Trimming history. Current tokens: {current_tokens}, Limit: {max_tokens}")
         
-        # Algorithm: Remove oldest messages until current_tokens < max_tokens - chunk_size
         target_tokens = max_tokens - chunk_size
         
-        while self.messages and self.get_token_count() > target_tokens:
-            # We must be careful not to remove the last message if it's the one we just added?
-            # Actually, trim_to_limit is called after add_message.
-            # Usually we don't want to remove the message that was JUST added unless it's huge.
-            if len(self.messages) <= 1:
+        # Identify all indices of 'user' messages (safe starting points)
+        user_indices = [i for i, msg in enumerate(self.messages) if msg["role"] == "user"]
+        
+        if not user_indices:
+            # Fallback if no user messages exist (shouldn't happen in normal flow)
+            while self.messages and self.get_token_count() > target_tokens:
+                if len(self.messages) <= 1: break
+                self.messages.pop(0)
+            print(f"ChatHistory: Trimming complete (fallback). New tokens: {self.get_token_count()}")
+            return
+
+        # We want to find the first user turn that brings us under the limit.
+        # We MUST keep at least the last user turn.
+        new_start_index = user_indices[-1] # Default to keeping only the last turn
+        
+        for idx in user_indices:
+            # If keeping messages from this idx onwards fits in target_tokens
+            if self._calculate_tokens(self.messages[idx:]) <= target_tokens:
+                new_start_index = idx
                 break
-            self.messages.pop(0)
+            # If we are at the last user index and even it doesn't fit, 
+            # we've already set new_start_index = user_indices[-1].
+            
+        if new_start_index > 0:
+            self.messages = self.messages[new_start_index:]
             
         print(f"ChatHistory: Trimming complete. New tokens: {self.get_token_count()}")
