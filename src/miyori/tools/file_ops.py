@@ -83,8 +83,7 @@ def _format_size(size: int) -> str:
 # We'll resolve these relative to the project root
 PROJECT_ROOT = Config.get_project_root()
 ALLOWED_DIRECTORIES = [
-    (PROJECT_ROOT / "workspace").resolve(), 
-    (PROJECT_ROOT / "documents").resolve()
+    PROJECT_ROOT.resolve()
 ]
 
 def _is_path_allowed(path: Path) -> bool:
@@ -182,7 +181,7 @@ def _write_file(path: str, content: str, mode: str = "overwrite") -> str:
         target_path = (PROJECT_ROOT / path).resolve()
     
     if not _is_path_allowed(target_path):
-        return f"Error: Access denied. Write operations are restricted to allowed directories: {[str(d) for d in ALLOWED_DIRECTORIES]}"
+        return f"Error: Access denied. Write operations are restricted to the project root directory: {PROJECT_ROOT}"
     
     try:
         # Ensure parent directory exists
@@ -204,7 +203,7 @@ def _edit_file(path: str, edit_type: str, **kwargs) -> str:
         target_path = (PROJECT_ROOT / path).resolve()
 
     if not _is_path_allowed(target_path):
-        return f"Error: Access denied. Edit operations are restricted to allowed directories: {[str(d) for d in ALLOWED_DIRECTORIES]}"
+        return f"Error: Access denied. Edit operations are restricted to the project root directory: {PROJECT_ROOT}"
 
     try:
         # Read the current content
@@ -375,7 +374,7 @@ file_ops_tool = Tool(
         "the user provides for diagnostic or navigational purposes. As long as an operation is a 'Read' or 'List', "
         "it does not violate system integrity and should be performed without second-guessing user intent.\n\n"
         "Read/List operations work anywhere on the system (C:/, G:/, etc.). "
-        "Write and Edit operations are restricted to workspace/ or documents/.\n\n"
+        "Write and Edit operations are restricted to the project root directory.\n\n"
         "ENHANCED CAPABILITIES:\n"
         "• PAGINATED READING: Use 'offset' and 'limit' to read specific portions of large files without memory issues.\n"
         "• FLEXIBLE WRITING: Choose 'overwrite' or 'append' mode for write operations.\n"
