@@ -65,12 +65,23 @@ Stores facts distilled from multiple episodes.
 
 | Field | Type | Description |
 | :--- | :--- | :--- |
+| `id` | UUID | Primary Key. |
 | `fact` | TEXT | Atomic information (e.g., "User is a dev"). |
 | `confidence` | REAL | 0.0-1.0 stability score. |
+| `first_observed` | DATETIME | When fact was first extracted. |
+| `last_confirmed` | DATETIME | Last time fact was reinforced by evidence. |
 | `version_history` | JSON | Tracked changes to facts over time. |
-| `derived_from` | JSON | Source Episodic UUIDs. |
-| `contradictions` | JSON | UUIDs of conflicting memories. |
-| `status` | TEXT | `tentative` \| `stable` \| `deprecated`. |
+| `derived_from` | JSON | Source Episodic UUIDs (evidence lineage). |
+| `contradictions` | JSON | UUIDs of conflicting facts. |
+| `status` | TEXT | `tentative` \| `stable` \| `deprecated` \| `merged_into`. |
+| `embedding` | BLOB | 768-dim vector for similarity search. |
+| `evidence_count` | INTEGER | Number of supporting episodes found. |
+| `merged_into_id` | TEXT | If merged, points to canonical fact UUID. |
+
+**Confidence Thresholds:**
+- `< 0.3`: Auto-deprecated, excluded from all retrieval
+- `0.3 - 0.5`: Available in tool searches only
+- `> 0.5`: Full participation in passive streaming and active retrieval
 
 ---
 
@@ -124,15 +135,90 @@ The `build_context()` function in `src/memory/context.py` (`ContextBuilder` clas
 
 ## 6. Background Maintenance Processes
 
-### 6.1 Consolidation
-Running nightly (or per 50 episodes) in `src/memory/consolidation.py` (`ConsolidationManager` class), this process clusters episodic memories. If a fact appears in multiple clusters/episodes, it is extracted and promoted to **Semantic Memory** in `src\memory\deep_layers.py`.
+The nightly consolidation cycle (`run_consolidation.py`) performs four major operations:
 
-### 6.2 Conflict Resolution
-The system detects if a new memory conflicts with a semantic fact in `src/memory/consolidation.py` (`ContradictionDetector` class).
-* If `new_timestamp > last_confirmed`, the old fact's confidence is lowered.
+### 6.1 Fact Extraction
+Implemented in `src/memory/consolidation.py` (`ConsolidationManager` class), this process clusters episodic memories using HDBSCAN. If a fact appears in multiple clusters/episodes, it is extracted and promoted to **Semantic Memory** via `src/memory/deep_layers.py` (`SemanticExtractor`).
 
-### 6.3 Budget Enforcement
+### 6.2 Confidence Management
+Implemented in `src/memory/confidence_manager.py` (`ConfidenceManager` class), this system applies rule-based confidence updates:
+
+**Evidence Accumulation:**
+- Vector search finds episodes similar to each fact (threshold: 0.75)
+- Asymptotic growth formula: `confidence += 0.05 * (1 - confidence)` per supporting episode
+- Updates `derived_from` array and `evidence_count`
+
+**Time Decay:**
+- Exponential decay: `confidence *= exp(-days_since_evidence * 0.01)`
+- ~10% decay per 10 days without reinforcement
+
+**Contradiction Detection:**
+- Finds fact pairs with cosine similarity > 0.85
+- **Clear contradictions** (sim > 0.92, both high confidence): Auto-reduce both by 50%
+- **Ambiguous conflicts**: Queued for batched LLM resolution
+
+**Auto-Deprecation:**
+- Facts falling below 0.3 confidence are set to `status='deprecated'`
+
+### 6.3 Fact Deduplication (Merging)
+Implemented in `src/memory/merge_manager.py` (`MergeManager` class), this three-stage process eliminates duplicate facts:
+
+**Stage 1: Candidate Discovery**
+- Computes pairwise cosine similarity matrix for all active facts
+- Groups facts above 0.85 threshold into clusters via connected components
+
+**Stage 2: Rule-Based Auto-Merge**
+Clusters meeting these criteria are merged automatically:
+- Cosine similarity > 0.85
+- No existing contradictions between members
+- At least one fact has confidence > 0.6
+
+Merge operation:
+- Winner = highest confidence fact
+- `winner.derived_from = union(all derived_from arrays)`
+- `winner.evidence_count = sum(all evidence_counts)`
+- Losers: `status='merged_into'`, `merged_into_id=winner.id`
+
+**Stage 3: LLM Validation**
+- Ambiguous clusters sent to LLM in single batched call
+- LLM decides: `MERGE`, `KEEP_ALL`, or `PARTIAL_MERGE`
+
+### 6.4 Budget Enforcement
 Hard limits are enforced via `config.json` settings in `src/memory/budget.py` (`MemoryBudget` class):
 * **Episodic Cap:** 1000 Active items.
 * **Semantic Cap:** 500 Facts.
 * **Pruning Strategy:** When over budget, the system archives the oldest, lowest-importance items first.
+
+---
+
+## 7. Consolidation Flow Diagram
+
+```mermaid
+graph TD
+    A[Nightly Trigger] --> B[Extract New Facts from Episodes]
+    B --> C[Queue for Embedding]
+    
+    C --> D[Update Confidence Scores]
+    D --> E[Find Supporting Episodes via Vector Search]
+    D --> F[Apply Time Decay]
+    D --> G[Detect Contradictions via Similarity]
+    
+    G --> H{Clear or Ambiguous?}
+    H -->|Clear| I[Auto-Handle: Lower Confidence]
+    H -->|Ambiguous| J[Queue for LLM]
+    
+    D --> K[Find Merge Candidates via Similarity]
+    K --> L{Auto-Mergeable?}
+    L -->|Yes| M[Rule-Based Merge + Preserve Evidence]
+    L -->|Ambiguous| N[Queue for LLM]
+    
+    J --> O[Batch LLM Call: Contradictions]
+    N --> P[Batch LLM Call: Merges]
+    
+    O --> Q[Apply Updates]
+    P --> Q
+    I --> Q
+    M --> Q
+    
+    Q --> R[Deprecate Facts Below 0.3 Confidence]
+```
