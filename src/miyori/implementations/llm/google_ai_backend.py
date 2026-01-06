@@ -196,7 +196,8 @@ class GoogleAIBackend(ILLMBackend):
         on_chunk: Callable[[str], None],
         on_tool_call: Callable[[str, Dict[str, Any]], str],
         interrupt_check: Callable[[], bool] = None,
-        source: str = "text"
+        source: str = "text",
+        agentic_state: Optional[Any] = None
     ) -> None:
         if not self.client:
             print("Error: API Key not configured.")
@@ -228,7 +229,8 @@ class GoogleAIBackend(ILLMBackend):
                 source=source,
                 context_builder=self.context_builder if self.memory_enabled else None,
                 store_turn_callback=store_turn_wrapper,
-                generate_config=config
+                generate_config=config,
+                agentic_state=agentic_state
             )
 
             # Log system instruction and prompt (from the first turn usually)

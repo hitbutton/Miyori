@@ -62,6 +62,18 @@ Miyori uses a human-like memory system designed for behavioral consistency rathe
 * **Async Embedding Queue**: Summaries are generated via LLM and queued for background processing to prevent TTS latency. 
 * **Prioritized Retrieval**: Context is built allocating important and relevant memories within a token budget.
 * **Consolidation**: A periodic background task clusters related episodes to extract stable facts and prunes the database to stay within memory budgets.
+---
+
+## Agentic Behavior
+
+Miyori can transition from a single-turn responder to an autonomous agent. This is managed by an orchestration loop that allows the LLM to execute multiple steps without user intervention.
+
+### Autonomous Loop
+* **Initiation**: The agent calls `agentic_loop(objective)` to set a goal and enter autonomous mode.
+* **Orchestration**: `LLMCoordinator` manages the multi-turn execution, injecting current agentic state (objective, iteration, terminal context) into each turn.
+* **Termination**: The loop ends when the agent calls `exit_loop()` or reaches the hard iteration limit (default 25).
+* **State Tracking**: `AgenticState` maintains environmental context (CWD, modified files, last command) across iterations.
+
 
 ---
 

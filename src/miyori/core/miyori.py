@@ -6,17 +6,20 @@ from miyori.interfaces.llm_backend import ILLMBackend
 from miyori.core.tool_registry import ToolRegistry
 from miyori.utils.config import Config
 from miyori.core.state_manager import StateManager
+from miyori.core.agentic_state import AgenticState
 
 class MiyoriCore:
     def __init__(self, 
                  speech_output: ISpeechOutput,
                  llm: ILLMBackend,
                  state_manager: StateManager,
-                 tool_registry: ToolRegistry = None):
+                 tool_registry: ToolRegistry = None,
+                 agentic_state: AgenticState = None):
         self.speech_output = speech_output
         self.llm = llm
         self.state_manager = state_manager
         self.tool_registry = tool_registry
+        self.agentic_state = agentic_state or AgenticState()
         
         self.last_interaction_time = 0
         # Load config for active listen timeout
@@ -57,7 +60,8 @@ class MiyoriCore:
                 on_chunk=on_chunk,
                 on_tool_call=lambda n, p: "",
                 interrupt_check=self.state_manager.should_interrupt,
-                source=source
+                source=source,
+                agentic_state=self.agentic_state
             )
 
     def _handle_with_tools(self, user_input: str, source: str, on_chunk: Callable[[str], None]) -> None:
@@ -90,7 +94,8 @@ class MiyoriCore:
             on_chunk=on_chunk,
             on_tool_call=on_tool_call,
             interrupt_check=self.state_manager.should_interrupt,
-            source=source
+            source=source,
+            agentic_state=self.agentic_state
         )
 
     def needs_wake_word(self) -> bool:

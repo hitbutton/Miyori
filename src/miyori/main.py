@@ -10,6 +10,10 @@ from miyori.server import app as server_module
 from miyori.tools.web_search import web_search_tool
 from miyori.tools.file_ops import file_ops_tool
 from miyori.tools.memory_search import create_memory_search_tool
+from miyori.tools.agentic_loop import create_agentic_loop_tool
+from miyori.tools.exit_loop import exit_loop_tool
+from miyori.tools.terminal import create_terminal_tool
+from miyori.core.agentic_state import AgenticState
 from miyori.utils.logger import setup_logging
 from miyori.utils.config import Config
 
@@ -24,6 +28,9 @@ def main():
     speech_input = PorcupineCobraVosk()
     speech_output = KokoroTTSOutput()
     llm_backend = GoogleAIBackend()
+    
+    # Initialize agentic state for the session
+    agentic_state = AgenticState()
     
     # Setup tools
     tool_registry = ToolRegistry()
@@ -44,13 +51,29 @@ def main():
             tool_registry.register(file_ops_tool)
         if memory_search_tool and tools_config.get("memory_search", {}).get("enabled", True):
             tool_registry.register(memory_search_tool)
+            
+        # Register Agentic Loop tools
+        if tools_config.get("agentic", {}).get("enabled", True):
+            tool_registry.register(create_agentic_loop_tool(agentic_state))
+            tool_registry.register(exit_loop_tool)
+            
+        # Register Terminal tool
+        if tools_config.get("terminal", {}).get("enabled", True):
+            # For prototype, we use a simple print for approval
+            def console_approval(cmd: str) -> bool:
+                print(f"\n⚠️  [SECURITY] Approve command? (y/n): {cmd}")
+                response = input().lower().strip()
+                return response == 'y'
+                
+            tool_registry.register(create_terminal_tool(agentic_state, approval_callback=console_approval))
     
     # Initialize Core
     miyori_core = MiyoriCore(
         speech_output=speech_output, 
         llm=llm_backend,
         state_manager=state_manager,
-        tool_registry=tool_registry
+        tool_registry=tool_registry,
+        agentic_state=agentic_state
     )
     
     # Configure Server Module Globals
