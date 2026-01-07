@@ -149,13 +149,6 @@ class LLMCoordinator:
                 if text:
                     full_response_text.append(text)
                     on_chunk(text)
-                text = parsed.get("text", "")
-                tool_calls = parsed.get("tool_calls", [])
-                
-                # Stream text chunks
-                if text:
-                    full_response_text.append(text)
-                    on_chunk(text)
                 
                 # 5. HANDLE TOOL CALLS
                 if tool_calls:
