@@ -3,9 +3,69 @@ from google.genai import types
 from typing import Callable, List, Dict, Any, Union, Optional
 import asyncio
 import threading
-
+import time
+from collections import deque
 from miyori.utils.config import Config
 from miyori.core.tools import Tool
+class TokenMonitor:
+    """
+    Sliding window monitor for API token usage.
+    Tracks tokens per minute (TPM) and introduces predictive backoff.
+    """
+    def __init__(self, window_seconds=60, tpm_limit=1000000):
+        self.window_seconds = window_seconds
+        self.tpm_limit = tpm_limit
+        self.history = deque()  # List of (timestamp, token_count)
+        self.lock = threading.Lock()
+
+    def record_usage(self, token_count: int):
+        with self.lock:
+            self.history.append((time.time(), token_count))
+            self._cleanup()
+
+    def _cleanup(self):
+        now = time.time()
+        while self.history and self.history[0][0] < now - self.window_seconds:
+            self.history.popleft()
+
+    def get_current_tpm(self) -> int:
+        self._cleanup()
+        return sum(count for _, count in self.history)
+
+    def wait_until_available(self, incoming_tokens: int):
+        """Calculate and wait for the precise time needed to fit incoming tokens."""
+        with self.lock:
+            while True:
+                self._cleanup()
+                current_sum = sum(count for _, count in self.history)
+                
+                if current_sum + incoming_tokens <= self.tpm_limit:
+                    break
+                
+                # We need to wait until enough tokens expire.
+                # Find how many items we need to drop from the start of history.
+                needed_reduction = (current_sum + incoming_tokens) - self.tpm_limit
+                
+                dropped_so_far = 0
+                wait_timestamp = time.time() - self.window_seconds # Default to now (no wait)
+                
+                for timestamp, count in self.history:
+                    dropped_so_far += count
+                    if dropped_so_far >= needed_reduction:
+                        # This is the timestamp of the item that needs to expire.
+                        wait_timestamp = timestamp
+                        break
+                
+                now = time.time()
+                # The item at wait_timestamp expires at wait_timestamp + window_seconds
+                wait_time = (wait_timestamp + self.window_seconds) - now
+                
+                if wait_time > 0:
+                    print(f"TokenMonitor: TPM limit approaching. Estimated request ({incoming_tokens}) exceeds capacity. Waiting {wait_time:.2f}s...")
+                    time.sleep(wait_time)
+                else:
+                    # Time has already passed or rounding issue
+                    break
 from miyori.interfaces.llm_backend import ILLMBackend
 from miyori.core.chat_history import ChatHistory
 from miyori.core.llm_coordinator import LLMCoordinator
@@ -61,6 +121,12 @@ class GoogleAIBackend(ILLMBackend):
             format_tool_result_callback=self._format_tool_result,
             max_tool_turns=self.MAX_TOOL_TURNS
         )
+        self.token_monitor = TokenMonitor(
+            window_seconds=60, 
+            tpm_limit=1000000, 
+            backoff_threshold=800000
+        )
+
         
         # Memory Components
         try:
@@ -302,11 +368,51 @@ class GoogleAIBackend(ILLMBackend):
 
     def _call_provider_api(self, provider_messages: List[types.Content], config: types.GenerateContentConfig) -> Any:
         """Makes stateless API call to Google's generate_content."""
-        return self.client.models.generate_content(
+        # 1. Estimate incoming tokens for predictive backoff
+        try:
+            # We don't need tools/system_instruction for token counting usually, 
+            # but providing them ensures higher accuracy.
+            estimate = self.client.models.count_tokens(
+                model=self.model_name,
+                contents=provider_messages,
+                config=config
+            )
+            incoming_tokens = estimate.total_tokens
+        except Exception as e:
+            # Fallback to a safe guess (roughly 20% of window) if estimation fails
+            print(f"TokenMonitor: Estimation failed ({e}), using fallback.")
+            incoming_tokens = 5000 
+
+        # 2. Calculate and wait for necessary window space
+        self.token_monitor.wait_until_available(incoming_tokens)
+
+        # 3. Execute API call
+        response = self.client.models.generate_content(
             model=self.model_name,
             contents=provider_messages,
             config=config
         )
+
+        # 4. Record actual usage metadata for future calculations
+        if hasattr(response, 'usage_metadata') and response.usage_metadata:
+            self.token_monitor.record_usage(response.usage_metadata.total_token_count)
+
+        return response
+        """Makes stateless API call to Google's generate_content."""
+        # Check for necessary backoff
+        self.token_monitor.check_and_wait()
+
+        response = self.client.models.generate_content(
+            model=self.model_name,
+            contents=provider_messages,
+            config=config
+        )
+
+        # Record usage if available
+        if hasattr(response, 'usage_metadata') and response.usage_metadata:
+            self.token_monitor.record_usage(response.usage_metadata.total_token_count)
+
+        return response
 
     def _parse_provider_response(self, response: Any) -> Dict:
         """Extracts text, thought, and tool calls from Google response."""
@@ -325,6 +431,9 @@ class GoogleAIBackend(ILLMBackend):
                         thought_parts.append(part.text)
                 elif hasattr(part, 'text') and part.text:
                     text_parts.append(part.text)
+                
+                if hasattr(part, 'thought') and part.thought:
+                    thought_parts.append(part.thought)
                 
                 if hasattr(part, 'function_call') and part.function_call:
                     tc_data = {
