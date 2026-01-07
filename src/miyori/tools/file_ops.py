@@ -98,8 +98,8 @@ def _is_path_allowed(path: Path) -> bool:
     except (ValueError, RuntimeError):
         return False
 
-def _read_file(path: str, force: bool = False, offset: int = 0, limit: int = 5000) -> str:
-    """Read and return file contents with diagnostic headers."""
+def _read_file(path: str, force: bool = False, offset: int = 0, limit: int = 500) -> str:
+    """Read and return file contents with line-based pagination and diagnostic headers."""
     # 1. Resolve absolute path and confirm existence
     target_path = Path(path)
     if not target_path.is_absolute():
@@ -140,13 +140,15 @@ def _read_file(path: str, force: bool = False, offset: int = 0, limit: int = 500
         # 5. If Text OR Force: Attempt UTF-8 read
         try:
             with open(target_path, 'r', encoding='utf-8') as f:
-                full_content = f.read() # Read entire file
-                # Apply pagination: slice content based on character offset and limit
-                start_char = min(offset, len(full_content))
-                end_char = min(start_char + limit, len(full_content))
-                content = full_content[start_char:end_char]
-                bytes_read = len(content.encode('utf-8'))
-                total_chars = len(full_content)
+                lines = f.readlines()
+                total_lines = len(lines)
+                
+                # Apply pagination: slice based on lines
+                start_line = max(0, min(offset, total_lines))
+                end_line = max(0, min(start_line + limit, total_lines))
+                
+                content_lines = lines[start_line:end_line]
+                content = "".join(content_lines)
         except UnicodeDecodeError:
             header = f"PATH: {target_path}\n"
             header += f"STATS: {_format_size(total_size)} | {mod_time}\n"
@@ -155,12 +157,13 @@ def _read_file(path: str, force: bool = False, offset: int = 0, limit: int = 500
             return header
 
         # Header for successful read
-        truncated = total_chars > (offset + len(content))
+        truncated = total_lines > end_line
         header = f"PATH: {target_path}\n"
         header += f"STATS: {_format_size(total_size)} | {mod_time}\n"
         if diagnostic_tags:
             header += f"TAGS: {diagnostic_tags.strip()}\n"
-        view_str = f"Chars {offset} to {offset + len(content)} of {total_chars}"
+        
+        view_str = f"Lines {start_line} to {end_line} of {total_lines}"
         if truncated:
             view_str += " [TRUNCATED]"
         header += f"VIEW: {view_str}\n"
@@ -168,7 +171,7 @@ def _read_file(path: str, force: bool = False, offset: int = 0, limit: int = 500
         
         result = header + content
         if truncated:
-            result += f"\n\n... (truncated to {len(content)} characters)"
+            result += f"\n\n... (truncated to {len(content_lines)} lines)"
         
         return result
     except Exception as e:
@@ -249,7 +252,7 @@ def _list_directory(path: str, offset: int = 0) -> str:
     except Exception as e:
         return f"Error listing directory: {str(e)}"
 
-def file_operations(operation: str, path: str, content: str = None, offset: int = 0, limit: int = 5000, mode: str = "overwrite", force: bool = False) -> str:
+def file_operations(operation: str, path: str, content: str = None, offset: int = 0, limit: int = 500, mode: str = "overwrite", force: bool = False) -> str:
     """
     Perform file operations (read, write, or list).
 
@@ -257,8 +260,8 @@ def file_operations(operation: str, path: str, content: str = None, offset: int 
         operation: Either "read", "write", or "list"
         path: Path to the file or directory
         content: Content to write (only used for write operation)
-        offset: Character offset for reading (read operation) or item offset for listing (list operation)
-        limit: Character limit for reading (default: 5000)
+        offset: Line offset for reading (read operation) or item offset for listing (list operation)
+        limit: Line limit for reading (default: 500)
         mode: Write mode - "overwrite" (default) or "append" (only for write operation)
         force: Force read even if file appears binary (only for read operation)
 
@@ -301,7 +304,7 @@ file_ops_tool = Tool(
         "• Read/List: Works anywhere on the filesystem\n"
         "• Write: Restricted to project root directory\n\n"
         "FEATURES:\n"
-        "• Paginated reading for large files (use offset/limit)\n"
+        "• Paginated reading for large files (use offset/limit – line-based)\n"
         "• Binary detection with diagnostic headers\n"
         "• Automatic directory creation for new files\n"
         "• Cross-platform path handling\n"
@@ -329,13 +332,13 @@ file_ops_tool = Tool(
         ToolParameter(
             name="offset",
             type="integer",
-            description="Character offset for reading or item offset for listing (default: 0)",
+            description="Line offset for reading or item offset for listing (default: 0)",
             required=False
         ),
         ToolParameter(
             name="limit",
             type="integer",
-            description="Character limit for reading (default: 5000)",
+            description="Line limit for reading (default: 500)",
             required=False
         ),
         ToolParameter(

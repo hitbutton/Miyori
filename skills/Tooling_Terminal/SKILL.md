@@ -8,7 +8,7 @@ Provides comprehensive access to the workspace and project files.
 ### Key Actions:
 - **`list`**: Recursively lists directory contents. Directories are listed first, then files. Shows file sizes and modification dates.
 - **`read`**: Reads file content. Supports:
-    - **Paginated Reading**: Use `offset` and `limit` for large files.
+    - **Paginated Reading**: Use `offset` and `limit` (line-based) for large files. Default limit is 500 lines.
     - **Binary Detection**: Automatically detects and profiles binary files (images, executables) instead of dumping raw data.
 - **`write`**: Creates or overwrites files.
 
