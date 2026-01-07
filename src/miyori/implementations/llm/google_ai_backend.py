@@ -211,7 +211,12 @@ class GoogleAIBackend(ILLMBackend):
         # Static config for Gemini
         config = types.GenerateContentConfig(
             system_instruction=self.system_instruction if self.system_instruction else None,
-            tools=google_tools if google_tools else None
+            tools=google_tools if google_tools else None,
+            thinking_config=types.ThinkingConfig(
+                # NOTE: If using Gemini 2.5 models, use 'thinking_budget' instead:
+                include_thoughts=True,
+                thinking_level="high"
+            )
         )
 
         def store_turn_wrapper(u, m):
@@ -304,13 +309,21 @@ class GoogleAIBackend(ILLMBackend):
         )
 
     def _parse_provider_response(self, response: Any) -> Dict:
-        """Extracts text and tool calls from Google response."""
+        """Extracts text, thought, and tool calls from Google response."""
         text_parts = []
+        thought_parts = []
         tool_calls = []
         
         if response.candidates and response.candidates[0].content.parts:
             for part in response.candidates[0].content.parts:
-                if hasattr(part, 'text') and part.text:
+                # In Gemini 2.0 Thinking models, thoughts are identified by the 'thought' boolean
+                # while the content remains in the 'text' attribute.
+                is_thought = getattr(part, 'thought', False)
+                
+                if is_thought:
+                    if hasattr(part, 'text') and part.text:
+                        thought_parts.append(part.text)
+                elif hasattr(part, 'text') and part.text:
                     text_parts.append(part.text)
                 
                 if hasattr(part, 'function_call') and part.function_call:
@@ -327,6 +340,7 @@ class GoogleAIBackend(ILLMBackend):
         
         return {
             "text": "".join(text_parts),
+            "thought": "".join(thought_parts),
             "tool_calls": tool_calls
         }
 
