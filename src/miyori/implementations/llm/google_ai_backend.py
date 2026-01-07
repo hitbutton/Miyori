@@ -316,11 +316,15 @@ class GoogleAIBackend(ILLMBackend):
         
         if response.candidates and response.candidates[0].content.parts:
             for part in response.candidates[0].content.parts:
-                if hasattr(part, 'text') and part.text:
-                    text_parts.append(part.text)
+                # In Gemini 2.0 Thinking models, thoughts are identified by the 'thought' boolean
+                # while the content remains in the 'text' attribute.
+                is_thought = getattr(part, 'thought', False)
                 
-                if hasattr(part, 'thought') and part.thought:
-                    thought_parts.append(part.thought)
+                if is_thought:
+                    if hasattr(part, 'text') and part.text:
+                        thought_parts.append(part.text)
+                elif hasattr(part, 'text') and part.text:
+                    text_parts.append(part.text)
                 
                 if hasattr(part, 'function_call') and part.function_call:
                     tc_data = {
@@ -337,31 +341,6 @@ class GoogleAIBackend(ILLMBackend):
         return {
             "text": "".join(text_parts),
             "thought": "".join(thought_parts),
-            "tool_calls": tool_calls
-        }
-        """Extracts text and tool calls from Google response."""
-        text_parts = []
-        tool_calls = []
-        
-        if response.candidates and response.candidates[0].content.parts:
-            for part in response.candidates[0].content.parts:
-                if hasattr(part, 'text') and part.text:
-                    text_parts.append(part.text)
-                
-                if hasattr(part, 'function_call') and part.function_call:
-                    tc_data = {
-                        "id": str(uuid.uuid4())[:8],
-                        "name": part.function_call.name,
-                        "arguments": part.function_call.args or {}
-                    }
-                    # Capture thought_signature if present on the Part
-                    if hasattr(part, 'thought_signature') and part.thought_signature:
-                        tc_data["thought_signature"] = part.thought_signature
-                    
-                    tool_calls.append(tc_data)
-        
-        return {
-            "text": "".join(text_parts),
             "tool_calls": tool_calls
         }
 

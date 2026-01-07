@@ -143,7 +143,8 @@ class LLMCoordinator:
                 
                 # Stream thought chunks if present
                 if thought:
-                    on_chunk(f"\nmiyori (thinking): {thought}\n")
+                    # Output thoughts to terminal silently, do not send to on_chunk (TTS/client)
+                    print(f"\nmiyori (thinking): {thought}")
 
                 # Stream text chunks
                 if text:
