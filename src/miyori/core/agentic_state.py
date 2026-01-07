@@ -15,7 +15,7 @@ class AgenticState:
     original_prompt: str = ""
     objective: str = ""
     iteration: int = 0
-    max_iterations: int = 25
+    max_iterations: int = 100
     working_directory: str = ""
     last_command: str = ""
     last_output: str = ""  # Truncated diagnostic output
