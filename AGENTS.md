@@ -1,23 +1,18 @@
-# Agent Guidelines
+# Agent Guidelines (Linux)
 
 ## Environment
-* **OS:** Windows 11 (Windows Terminal)
-* **Shell:** PowerShell 7 (Core)
-* **Python:** Project `.venv` only
-* **Package Manager:** `uv` (Never use `pip`)
+* **OS:** Linux (Ubuntu/Debian)
+* **Shell:** Bash/Zsh
+* **Package Manager:** `uv` (Always use `uv run`, never `pip`)
 
-## Terminal & Encoding Standards
-* **Encoding:** UTF-8 (No BOM) for all files and strings.
-* **Command Syntax:** Use standard ASCII for PowerShell flags and logic.
-* **No Smart Quotes:** Strictly use straight quotes (`"` or `'`). Never use `“`, `”`, `‘`, or `’`.
-* **Paths:** Use Windows-style backslashes (`\`) for terminal commands.
-
-## Execution Rules
-* Always prefix Python execution with `uv run`.
-* Use `uv add <package>` for new dependencies.
-* Refer to `config.json` at the root for environment-specific variables.
+## Standards
+* **Encoding:** UTF-8
+* **Paths:** Forward slashes (`/`)
+* **No Smart Quotes:** Strictly use straight quotes (`"` or `'`).
 
 ## Project Structure
-* **Contracts:** `src/interfaces/`
-* **Implementations:** `src/implementations/`
-* **Documentation:** Read `ARCHITECTURE.md` before implementation to ensure pattern compliance.
+* **Core Logic:** `src/miyori/core/`
+* **Interfaces:** `src/miyori/interfaces/`
+* **Implementations:** `src/miyori/implementations/`
+* **Skills:** See `skills/` for technical manual.
+* **Architecture:** Read `ARCHITECTURE.md` for high-level patterns.
